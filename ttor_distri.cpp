@@ -32,7 +32,7 @@ typedef array<int, 3> int3;
 
 
 //Test Test2
-void tuto_1(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority)
+void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority)
 {
     const int rank = comm_rank();
     const int n_ranks = comm_size();
@@ -475,7 +475,7 @@ int main(int argc, char **argv)
     }
 
 
-    tuto_1(n_threads, verb, n, nb, n_col, n_row, priority);
+    cholesky(n_threads, verb, n, nb, n_col, n_row, priority);
 
     MPI_Finalize();
 }
