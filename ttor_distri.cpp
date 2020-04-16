@@ -77,10 +77,12 @@ void tuto_1(int n_threads, int verb, int n, int nb, int n_col, int n_row, int pr
     Taskflow<int2> trsm(&tp, verb);
     Taskflow<int3> gemm(&tp, verb);
 
+    /*
     DepsLogger dlog(1000000);
     Logger log(1000000);
     tp.set_logger(&log);
     comm.set_logger(&log);
+    */
 
     // Create active message
     auto am_trsm = comm.make_active_msg( 
