@@ -100,6 +100,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     Taskflow<int2> trsm(&tp, verb);
     Taskflow<int3> gemm(&tp, verb);
     Taskflow<int3> accu(&tp, verb);
+    Taskflow<int2> reduce(&tp, verb);
 
     /*
     DepsLogger dlog(1000000);
@@ -307,7 +308,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             timer t2 = wctime();
             gemm_us_t += 1e6 * elapsed(t1,t2);
             lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
-            gemm_results[i+j*nb].to_accumulate[k] = move(Atmp);
+            gemm_results[i+j*nb].to_accumulate[k%q] = move(Atmp);
             //gemm_us_t += 1;
             
 
