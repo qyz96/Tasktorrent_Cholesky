@@ -12,6 +12,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <cmath>
 
 
 #include <mpi.h>
@@ -40,12 +41,34 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     std::atomic<long long int> trsm_us_t(0);
     std::atomic<long long int> gemm_us_t(0);
 
+    int q = static_cast<int>(cbrt(n_ranks));
+    if (q * q * q != num_procs)
+    {
+        if (my_rank == 0)
+        {
+            cerr << "Number of processes must be a perfect cube." << endl;
+        }
+        MPI_Finalize();
+        exit(1);
+    }
+
+    int3 3d_rank;
+    3d_rank[0] = rank / (q*q);
+    3d_rank[1] = (rank % (q*q)) / q;
+    3d_rank[2] = (rank % (q*q)) % q;
 
 
     // Number of tasks
     int n_tasks_per_rank = 2;
 
+    
+    struct acc_data {
+        std::map<int, std::unique_ptr<MatrixXd>> to_accumulate; // to_accumulate[k] holds matrix result of gemm(k,i,j)
+        std::mutex mtx; // Protects that map
+    };
+    std::vector<acc_data> gemm_results(nb*nb);
 
+    auto 3d_2_rank = [&](int i, int j, int k) { return ((j % q) * q + k % q) + (i % q) * q * q;};
     auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
     MatrixXd A;
     A = MatrixXd::NullaryExpr(n*nb,n*nb, val);
@@ -76,6 +99,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     Taskflow<int> potrf(&tp, verb);
     Taskflow<int2> trsm(&tp, verb);
     Taskflow<int3> gemm(&tp, verb);
+    Taskflow<int3> accu(&tp, verb);
 
     /*
     DepsLogger dlog(1000000);
@@ -114,7 +138,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         .set_fulfill([&](int k) {
             vector<vector<int>> fulfill(n_ranks);
             for (int i=k+1; i<nb; i++) {
-                fulfill[bloc_2_rank(i,k)].push_back(i);
+                fulfill[3d_2_rank(i,k,k)].push_back(i);
                 
             }
             
@@ -137,7 +161,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             }
         })
         .set_indegree([&](int k) {
-            return 1;
+            return (k==0) ? 1 : k;
         })
         .set_mapping([&](int k) {
 
@@ -190,10 +214,10 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             vector<vector<int2>> fulfill(n_ranks);
             for (int j=k+1; j<nb; j++) {
                 if (j<i) {
-                    fulfill[bloc_2_rank(i,j)].push_back({i,j});
+                    fulfill[3d_2_rank(k,i,j)].push_back({i,j});
                 }
                 else {
-                    fulfill[bloc_2_rank(j,i)].push_back({j,i});
+                    fulfill[3d_2_rank(k,j,i)].push_back({j,i});
                 }
                 
             }
@@ -220,12 +244,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         .set_indegree([&](int2 ki) {
             int k=ki[0];
             int i=ki[1];
-            if (k==0) {
-                return 1;
-            }
-            else {
-                return 2;
-            }
+            return k+1;
         })
         .set_mapping([&](int2 ki) {
             int k=ki[0];
@@ -272,15 +291,23 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             int k=kij[0];
             int i=kij[1];
             int j=kij[2]; 
+
+            std::unique_ptr<MatrixXd> Atmp;
+            MatrixXd* Aij;
+            beta = 0.0;
+            Atmp = make_unique<MatrixXd>(n, n); // The matrix is allocated with garbage. The 0 in the BLAS call make sure its overwritten by 0's before doing any math
+            Aij = Atmp.get();
             timer t1 = wctime();           
             if (i==j) { 
-                cblas_dsyrk(CblasColMajor, CblasLower, CblasNoTrans, n, n, -1.0, blocs[i+k*nb]->data(), n, 1.0, blocs[i+j*nb]->data(), n);
+                cblas_dsyrk(CblasColMajor, CblasLower, CblasNoTrans, n, n, -1.0, blocs[i+k*nb]->data(), n, 1.0, Aij->data(), n);
             }
             else {
-                cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, n, n, -1.0,blocs[i+k*nb]->data(), n, blocs[j+k*nb]->data(), n, 1.0, blocs[i+j*nb]->data(), n);
+                cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, n, n, -1.0,blocs[i+k*nb]->data(), n, blocs[j+k*nb]->data(), n, 1.0, Aij->data(), n);
             }
             timer t2 = wctime();
             gemm_us_t += 1e6 * elapsed(t1,t2);
+            lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
+            gemm_results[i+j*nb].to_accumulate[k] = move(Atmp);
             //gemm_us_t += 1;
             
 
@@ -289,35 +316,13 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
-            if (k<j-1) {
-                gemm.fulfill_promise({k+1, i, j});
-                //printf("Gemm (%d, %d, %d) fulfilling Gemm (%d , %d, %d) on rank %d\n", k, i, j, k+1, i, j, comm_rank());
-            }
-            else {
-                if (i==j) {
-                    potrf.fulfill_promise(i);
-                    //printf("Gemm (%d, %d, %d) fulfilling Potrf %d on rank %d\n", k, i, j, i, comm_rank());
-                }
-                else {
-                    trsm.fulfill_promise({j,i});
-                    //printf("Gemm (%d, %d, %d) fulfilling Trsm (%d, %d) on rank %d\n", k, i, j, i, j, comm_rank());
-                }
-            }
-            
-
+            accu.fulfill_promise(kij);
         })
         .set_indegree([&](int3 kij) {
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
-            int t=3;
-            if (k==0) {
-                t--;
-            }
-            if (i==j) {
-                t--;
-            }
-            return t;
+            return (i==j) ? 1 : 2;
         })
         .set_mapping([&](int3 kij) {
             int k=kij[0];
@@ -361,7 +366,54 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             return "GEMM" + to_string(k) + "_" + to_string(i)+"_"+to_string(j)+"_"+to_string(comm_rank());
         });
 
-
+    accu.set_task([&](int3 kij) {
+            assert(block_2_rank(kij[1],kij[2]) == rank);
+            int k=kij[0]; // Step (gemm's pivot)
+            int i=kij[1]; // Row
+            int j=kij[2]; // Col
+            assert(j <= i);
+            assert(k < j);
+            std::unique_ptr<Eigen::MatrixXd> Atmp;
+            {
+                lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
+                Atmp = move(gemm_results[i+j*nb].to_accumulate[k]);
+                gemm_results[i+j*nb].to_accumulate.erase(k);
+            }
+            timer t_ = wctime();
+            *blocks[i+j*nb] += (*Atmp);
+            timer t__ = wctime();
+            accu_us_t += 1e6 * elapsed(t_, t__);
+        })
+        .set_fulfill([&](int3 kij) {
+            assert(block_2_rank(kij[1],kij[2]) == rank);
+            int k=kij[0];
+            int i=kij[1];
+            int j=kij[2];
+            assert(j <= i);
+            assert(k < j);
+            if(i == j) {
+                potrf.fulfill_promise(i);
+            } else {
+                trsm.fulfill_promise({j,i});
+            }
+        })
+        .set_indegree([&](int3 kij) {
+            assert(block_2_rank(kij[1],kij[2]) == rank);
+            return 1;
+        })
+        .set_mapping([&](int3 kij) {
+            assert(block_2_rank(kij[1],kij[2]) == rank);
+            return block_2_thread(kij[1], kij[2]); // IMPORTANT. Every (i,j) should map to a given fixed thread
+        })
+        .set_priority(gemm_block_2_prio)
+        .set_binding([&](int3 kij) {
+            assert(block_2_rank(kij[1],kij[2]) == rank);
+            return true; // IMPORTANT
+        })
+        .set_name([&](int3 kij) { // This is just for debugging and profiling
+            assert(block_2_rank(kij[1],kij[2]) == rank);
+            return accu_name(kij, rank);
+        });
     
 
     MPI_Barrier(MPI_COMM_WORLD);
