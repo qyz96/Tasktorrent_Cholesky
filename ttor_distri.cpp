@@ -67,10 +67,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         std::mutex mtx; // Protects that map
     };
 
-    struct reduction_data {
-        std::map<int2, std::unique_ptr<MatrixXd>> to_reduce; // to_reduce[i,j] holds matrix result of reduce[i,j] for further reduction
-        std::mutex mtx; // Protects that map
-    };
+
 
 
 
@@ -117,7 +114,6 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     Taskflow<int2> trsm(&tp, verb);
     Taskflow<int3> gemm(&tp, verb);
     Taskflow<int3> accu(&tp, verb);
-    Taskflow<int2> reduce(&tp, verb);
 
     /*
     DepsLogger dlog(1000000);
@@ -179,7 +175,16 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             }
         })
         .set_indegree([&](int k) {
-            return (k==0) ? 1 : k;
+
+            if (k==0) {
+                return 1;
+            }
+            else if (k < q) {
+                return k;
+            }
+            else {
+                return q;
+            }
         })
         .set_mapping([&](int k) {
 
@@ -262,7 +267,15 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         .set_indegree([&](int2 ki) {
             int k=ki[0];
             int i=ki[1];
-            return k+1;
+            if (k==0) {
+                return 1;
+            }
+            else if (k < q) {
+                return k+1;
+            }
+            else {
+                return q+1;
+            }
         })
         .set_mapping([&](int2 ki) {
             int k=ki[0];
@@ -304,28 +317,26 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             return "TRSM" + to_string(k) + "_" + to_string(i) + "_" +to_string(rank);
         });
 
+    auto am_accu = comm.make_active_msg([&](view<double>& Lijk, int &i, int &j, int& from) {
+        gemm_results[i+j*num_blocks].to_accumulate[from] = Map<MatrixXd>(Lijk.data(), n, n);
+        accu.fulfill_promise({from, i, j});
+    });
+
+
 
     gemm.set_task([&](int3 kij) {
             int k=kij[0];
             int i=kij[1];
             int j=kij[2]; 
-
-            std::unique_ptr<MatrixXd> Atmp;
-            MatrixXd* Aij;
-            beta = 0.0;
-            Atmp = make_unique<MatrixXd>(n, n); // The matrix is allocated with garbage. The 0 in the BLAS call make sure its overwritten by 0's before doing any math
-            Aij = Atmp.get();
             timer t1 = wctime();           
             if (i==j) { 
-                cblas_dsyrk(CblasColMajor, CblasLower, CblasNoTrans, n, n, -1.0, blocs[i+k*nb]->data(), n, 1.0, Aij->data(), n);
+                cblas_dsyrk(CblasColMajor, CblasLower, CblasNoTrans, n, n, -1.0, blocs[i+k*nb]->data(), n, 1.0, blocs[i+j*nb]->data(), n);
             }
             else {
-                cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, n, n, -1.0,blocs[i+k*nb]->data(), n, blocs[j+k*nb]->data(), n, 1.0, Aij->data(), n);
+                cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, n, n, -1.0,blocs[i+k*nb]->data(), n, blocs[j+k*nb]->data(), n, 1.0, blocs[i+j*nb]->data(), n);
             }
             timer t2 = wctime();
             gemm_us_t += 1e6 * elapsed(t1,t2);
-            lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
-            gemm_results[i+j*nb].to_accumulate[k/q] = move(Atmp);
             //gemm_us_t += 1;
             
 
@@ -334,13 +345,35 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
-            accu.fulfill_promise(kij);
+            if (k+q<=j-1) {
+                gemm.fulfill_promise({k+q, i, j});
+                //printf("Gemm (%d, %d, %d) fulfilling Gemm (%d , %d, %d) on rank %d\n", k, i, j, k+1, i, j, comm_rank());
+            }
+            else {
+                int dest = 3d_2_rank(i,j,j);
+                if (dest == rank) {
+                    accu.fulfill_promise({3d_rank[2], i, j});
+                }
+
+                else {
+                    am_accu->send(dest, blocs[i+j*nb]->data(), i, j, 3d_rank[2]);
+                }
+            }
+            
+
         })
         .set_indegree([&](int3 kij) {
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
-            return (i==j) ? 1 : 2;
+            int t=3;
+            if ((k/q)==0) {
+                t--;
+            }
+            if (i==j) {
+                t--;
+            }
+            return t;
         })
         .set_mapping([&](int3 kij) {
             int k=kij[0];
@@ -394,8 +427,8 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             std::unique_ptr<Eigen::MatrixXd> Atmp;
             {
                 lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
-                Atmp = move(gemm_results[i+j*nb].to_accumulate[k/q]);
-                gemm_results[i+j*nb].to_accumulate.erase(k/q);
+                Atmp = move(gemm_results[i+j*nb].to_accumulate[k]);
+                gemm_results[i+j*nb].to_accumulate.erase(k);
             }
             timer t_ = wctime();
             *blocks[i+j*nb] += (*Atmp);
@@ -412,7 +445,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             if(i == j) {
                 potrf.fulfill_promise(i);
             } else {
-                trsm.fulfill_promise({j,i});
+                trsm.fulfill_promise({i,j});
             }
         })
         .set_indegree([&](int3 kij) {
@@ -432,7 +465,9 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             assert(block_2_rank(kij[1],kij[2]) == rank);
             return accu_name(kij, rank);
         });
-    
+
+
+        
 
     MPI_Barrier(MPI_COMM_WORLD);
 
