@@ -66,7 +66,17 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         std::map<int, std::unique_ptr<MatrixXd>> to_accumulate; // to_accumulate[k] holds matrix result of gemm(k,i,j)
         std::mutex mtx; // Protects that map
     };
+
+    struct reduction_data {
+        std::map<int2, std::unique_ptr<MatrixXd>> to_reduce; // to_reduce[i,j] holds matrix result of reduce[i,j] for further reduction
+        std::mutex mtx; // Protects that map
+    };
+
+
+
     std::vector<acc_data> gemm_results(nb*nb);
+    int reduce_size = (nb + q - 1) / q;
+    std::vector<reduction_data> reduce_results(nb * nb);
 
     auto 3d_2_rank = [&](int i, int j, int k) { return ((j % q) * q + k % q) + (i % q) * q * q;};
     auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
@@ -74,22 +84,29 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     A = MatrixXd::NullaryExpr(n*nb,n*nb, val);
     MatrixXd L = A;
     vector<unique_ptr<MatrixXd>> blocs(nb*nb);
+
+    auto bloc_2_rank = [&](int i, int j) {
+        int r = (j % n_col) * n_row + (i % n_row);
+        assert(r >= 0 && r < n_ranks);
+        return r;
+    };
+
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
             blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
-
-            *blocs[ii+jj*nb]=L.block(ii*n,jj*n,n,n);
+            if (rank == bloc_2_rank)   {
+                *blocs[ii+jj*nb]=L.block(ii*n,jj*n,n,n);
+            }
+            else {
+                *blocs[ii+jj*nb] = MatrixXd::Zero(n,n);
+            }
         }
     }
 
 
 
     // Map tasks to rank
-    auto bloc_2_rank = [&](int i, int j) {
-        int r = (j % n_col) * n_row + (i % n_row);
-        assert(r >= 0 && r < n_ranks);
-        return r;
-    };
+    
 
     // Initialize the communicator structure
     Communicator comm(verb);
@@ -308,7 +325,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             timer t2 = wctime();
             gemm_us_t += 1e6 * elapsed(t1,t2);
             lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
-            gemm_results[i+j*nb].to_accumulate[k%q] = move(Atmp);
+            gemm_results[i+j*nb].to_accumulate[k/q] = move(Atmp);
             //gemm_us_t += 1;
             
 
@@ -377,8 +394,8 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             std::unique_ptr<Eigen::MatrixXd> Atmp;
             {
                 lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
-                Atmp = move(gemm_results[i+j*nb].to_accumulate[k]);
-                gemm_results[i+j*nb].to_accumulate.erase(k);
+                Atmp = move(gemm_results[i+j*nb].to_accumulate[k/q]);
+                gemm_results[i+j*nb].to_accumulate.erase(k/q);
             }
             timer t_ = wctime();
             *blocks[i+j*nb] += (*Atmp);
