@@ -528,21 +528,21 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     timer t1 = wctime();
     
     MPI_Status status;
-    /*
+    
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
             if (jj<=ii)  {
-            if (rank==0 && rank!=bloc_2_rank(ii,jj)) {
+            if (rank==0 && rank!=rank3d21(ii, jj, jj)) {
                 MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, (ii+jj*nb)%n_ranks, (ii+jj*nb)%n_ranks, MPI_COMM_WORLD, &status);
                 }
 
-            else if (rank==bloc_2_rank(ii,jj)) {
+            else if (rank==rank3d21(ii, jj, jj) && rank != 0) {
                 MPI_Send(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, 0, (ii+jj*nb)%n_ranks, MPI_COMM_WORLD);
                 }
             }
         }
     }
-    */
+    
     
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
