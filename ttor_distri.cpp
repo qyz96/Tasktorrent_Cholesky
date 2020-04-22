@@ -353,12 +353,14 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             else {
                 int dest =rank3d21(i,j,j);
                 if (dest == rank) {
+                    printf("Gemm (%d, %d, %d) fulfilling ACCUMU (%d , %d, %d) on rank %d\n", k, i, j, rank_3d[2], i, j, comm_rank());
                     accu.fulfill_promise({rank_3d[2], i, j});
                 }
 
                 else {
                     int kk = rank_3d[2];
                     auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
+                    printf("Gemm (%d, %d, %d) Sending ACCUMU (%d , %d, %d) to rank %d\n", k, i, j, rank_3d[2], i, j, dest);
                     am_accu->send(dest, Lij, i, j, kk);
                 }
             }
