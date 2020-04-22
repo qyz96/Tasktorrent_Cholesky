@@ -354,7 +354,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 //printf("Gemm (%d, %d, %d) fulfilling Gemm (%d , %d, %d) on rank %d\n", k, i, j, k+1, i, j, comm_rank());
             }
             else {
-                int dest =rank3d21(i % q ,j % q, k % q);
+                int dest =rank3d21(i % q ,j % q, rank_3d[2] % q);
                 if (dest == rank) {
                     printf("Gemm (%d, %d, %d) fulfilling ACCUMU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[2], i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
                     auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
