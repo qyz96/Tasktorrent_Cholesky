@@ -451,7 +451,6 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             int i=kij[1];
             int j=kij[2];
             assert(j <= i);
-            assert(k < j);
             if(i == j) {
                 potrf.fulfill_promise(i);
             } else {
