@@ -339,13 +339,13 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, n, n, -1.0,blocs[i+k*nb]->data(), n, blocs[j+k*nb]->data(), n, 1.0, blocs[i+j*nb]->data(), n);
             }
             timer t2 = wctime();
-            printf("Gemm (%d , %d, %d) on rank %d\n", k, i, j, comm_rank());
+            printf("Gemm (%d, %d, %d) on rank %d\n", k, i, j, comm_rank());
             gemm_us_t += 1e6 * elapsed(t1,t2);
             //gemm_us_t += 1;
             
 
       })
-        .set_fulfill([&](int3 kij) {
+        .set_fulfill([&](int3 kij) { 
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
@@ -431,7 +431,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             int i=kij[1]; // Row
             int j=kij[2]; // Col
             assert(j <= i);
-            printf("ACCUMU (%d , %d, %d) on rank %d\n", k, i, j, comm_rank());
+            printf("ACCUMU (%d, %d, %d) on rank %d\n", k, i, j, comm_rank());
             //assert(k < j);
             std::unique_ptr<Eigen::MatrixXd> Atmp;
             {
@@ -443,7 +443,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             *blocs[i+j*nb] += (*Atmp);
             timer t__ = wctime();
             accu_us_t += 1e6 * elapsed(t_, t__);
-            printf("ACCUMU (%d , %d, %d) on rank %d\n", k, i, j, comm_rank());
+            printf("ACCUMU (%d, %d, %d) on rank %d\n", k, i, j, comm_rank());
         })
         .set_fulfill([&](int3 kij) {
             assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
