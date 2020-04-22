@@ -147,7 +147,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
           timer t2 = wctime();
           potrf_us_t += 1e6 * elapsed(t1, t2);
           //potrf_us_t += 1;
-          //cout<<"Running potrf "<<k<<" on rank "<<rank<<"\n";
+          cout<<"Running potrf "<<k<<" on rank "<<rank<<"\n";
       })
         .set_fulfill([&](int k) {
             vector<vector<int>> fulfill(n_ranks);
@@ -228,7 +228,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         timer t2 = wctime();
         trsm_us_t += 1e6 * elapsed(t1, t2);
         //trsm_us_t += 1;
-        //cout<<"Running trsm "<<k<<" "<<i<<" on rank "<<rank<<"\n";
+        cout<<"Running trsm "<<k<<" "<<i<<" on rank "<<rank<<"\n";
 
       })
         .set_fulfill([&](int2 ki) {
@@ -336,6 +336,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, n, n, -1.0,blocs[i+k*nb]->data(), n, blocs[j+k*nb]->data(), n, 1.0, blocs[i+j*nb]->data(), n);
             }
             timer t2 = wctime();
+            printf("Gemm (%d , %d, %d) on rank %d\n", k, i, j, comm_rank());
             gemm_us_t += 1e6 * elapsed(t1,t2);
             //gemm_us_t += 1;
             
@@ -358,7 +359,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 else {
                     int kk = rank_3d[2];
                     auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
-                    //am_accu->send(dest, Lij, i, j, kk);
+                    am_accu->send(dest, Lij, i, j, kk);
                 }
             }
             
@@ -436,6 +437,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             *blocs[i+j*nb] += (*Atmp);
             timer t__ = wctime();
             accu_us_t += 1e6 * elapsed(t_, t__);
+            printf("ACCUMU (%d , %d, %d) on rank %d\n", k, i, j, comm_rank());
         })
         .set_fulfill([&](int3 kij) {
             assert(bloc_2_rank(kij[1],kij[2]) == rank);
