@@ -1,8 +1,8 @@
 #include "communications.hpp"
 #include "runtime.hpp"
 #include "util.hpp"
-#include <cblas.h>
-#include <lapacke.h>
+#include <mkl_cblas.h>
+#include <mkl_lapacke.h>
 #include <Eigen/Core>
 #include <Eigen/Cholesky>
 #include <fstream>
