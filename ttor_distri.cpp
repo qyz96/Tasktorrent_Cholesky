@@ -428,8 +428,8 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             int i=kij[1]; // Row
             int j=kij[2]; // Col
             assert(j <= i);
-            assert(k < j);
             printf("ACCUMU (%d , %d, %d) on rank %d\n", k, i, j, comm_rank());
+            assert(k < j);
             std::unique_ptr<Eigen::MatrixXd> Atmp;
             {
                 lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
