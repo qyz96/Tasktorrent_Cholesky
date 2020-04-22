@@ -317,7 +317,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             return "TRSM" + to_string(k) + "_" + to_string(i) + "_" +to_string(rank);
         });
 
-    auto am_accu = comm.make_active_msg([&](view<double>& Lijk, int &i, int &j, int& from) {
+    auto am_accu = comm.make_active_msg([&](view<double>& Lijk, int i, int j, int from) {
         *(gemm_results[i+j*nb].to_accumulate[from]) = Map<MatrixXd>(Lijk.data(), n, n);
         accu.fulfill_promise({from, i, j});
     });
@@ -485,7 +485,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
 
         })
         .set_binding([&](int3 kij) {
-            assert(block_2_rank(kij[1],kij[2]) == rank);
+            assert(bloc_2_rank(kij[1],kij[2]) == rank);
             return true; // IMPORTANT
         })
         .set_name([&](int3 kij) { // This is just for debugging and profiling
