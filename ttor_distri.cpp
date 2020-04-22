@@ -431,7 +431,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             int i=kij[1]; // Row
             int j=kij[2]; // Col
             assert(j <= i);
-            printf("Running ACCU (%d, %d, %d) on rank %d, %d, %d\n", i, j, k, rank_3d[0], rank_3d[1], rank_3d[2]);
+            printf("Running ACCU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
             //assert(k < j);
             std::unique_ptr<Eigen::MatrixXd> Atmp;
             {
@@ -443,7 +443,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             *blocs[i+j*nb] += (*Atmp);
             timer t__ = wctime();
             accu_us_t += 1e6 * elapsed(t_, t__);
-            printf("Running ACCU (%d, %d, %d) on rank %d, %d, %d\n", i, j, k, rank_3d[0], rank_3d[1], rank_3d[2]);
+            printf("Running ACCU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
         })
         .set_fulfill([&](int3 kij) {
             assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
