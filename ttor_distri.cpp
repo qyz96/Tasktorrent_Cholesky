@@ -423,7 +423,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         });
 
     accu.set_task([&](int3 kij) {
-            assert(rank3d21(kij[1],kij[2],kij[0]) == rank);
+            assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
             int k=kij[0]; // Step (gemm's pivot)
             int i=kij[1]; // Row
             int j=kij[2]; // Col
@@ -443,7 +443,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             printf("ACCUMU (%d , %d, %d) on rank %d\n", k, i, j, comm_rank());
         })
         .set_fulfill([&](int3 kij) {
-            assert(rank3d21(kij[1],kij[2],kij[0]) == rank);
+            assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
@@ -456,7 +456,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             }
         })
         .set_indegree([&](int3 kij) {
-            assert(rank3d21(kij[1],kij[2],kij[0]) == rank);
+            assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
             return 1;
         })
         .set_mapping([&](int3 kij) {
@@ -491,11 +491,11 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
 
         })
         .set_binding([&](int3 kij) {
-            assert(rank3d21(kij[1],kij[2],kij[0]) == rank);
+            assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
             return true; // IMPORTANT
         })
         .set_name([&](int3 kij) { // This is just for debugging and profiling
-            assert(rank3d21(kij[1],kij[2],kij[0]) == rank);
+            assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
