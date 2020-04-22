@@ -360,7 +360,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                     auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
                     std::unique_ptr<MatrixXd> Atmp;
                     Atmp = make_unique<MatrixXd>(n, n);
-                    *Atmp =  Map<MatrixXd>(Lijk.data(), n, n);
+                    *Atmp =  Map<MatrixXd>(Lij.data(), n, n);
                     gemm_results[i+j*nb].to_accumulate[from] = move(Atmp);
                     accu.fulfill_promise({rank_3d[2], i, j});
                 }
