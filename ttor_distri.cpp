@@ -572,7 +572,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     L1.solveInPlace(b);
     L1.transpose().solveInPlace(b);
     double error = (b - x).norm() / x.norm();
-    //cout << "Error solve: " << error << endl;
+    cout << "Error solve: " << error << endl;
 /*     std::ofstream logfile;
     string filename = "ttor_distributed_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
     logfile.open(filename);
