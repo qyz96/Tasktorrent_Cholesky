@@ -361,7 +361,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                     std::unique_ptr<MatrixXd> Atmp;
                     Atmp = make_unique<MatrixXd>(n, n);
                     *Atmp =  Map<MatrixXd>(Lij.data(), n, n);
-                    gemm_results[i+j*nb].to_accumulate[from] = move(Atmp);
+                    gemm_results[i+j*nb].to_accumulate[rank_3d[2]] = move(Atmp);
                     accu.fulfill_promise({rank_3d[2], i, j});
                 }
 
