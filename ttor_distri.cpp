@@ -566,7 +566,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     printf("Rank %d Total Computation Time: %f\n", rank, trsm_us_t.load()+potrf_us_t.load()+gemm_us_t.load());
     */
     LLT<MatrixXd> lltOfA(A);
-    MatrixXd TrueL= lltOfA.matrixL()
+    MatrixXd TrueL= lltOfA.matrixL();
     cout<<"True L:\n";
     cout<<TrueL;
     cout<<"L: \n";
