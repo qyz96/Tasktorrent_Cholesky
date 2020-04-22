@@ -358,7 +358,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 else {
                     int kk = rank_3d[2];
                     auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
-                    am_accu->send(dest, Lij, i, j, kk);
+                    //am_accu->send(dest, Lij, i, j, kk);
                 }
             }
             
