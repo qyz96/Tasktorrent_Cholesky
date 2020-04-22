@@ -42,9 +42,9 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     std::atomic<long long int> gemm_us_t(0);
 
     int q = static_cast<int>(cbrt(n_ranks));
-    if (q * q * q != num_procs)
+    if (q * q * q != n_ranks)
     {
-        if (my_rank == 0)
+        if (rank == 0)
         {
             cerr << "Number of processes must be a perfect cube." << endl;
         }
@@ -52,10 +52,10 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         exit(1);
     }
 
-    int3 3d_rank;
-    3d_rank[0] = rank / (q*q);
-    3d_rank[1] = (rank % (q*q)) / q;
-    3d_rank[2] = (rank % (q*q)) % q;
+    int3 rank_3d;
+    rank_3d[0] = rank / (q*q);
+    rank_3d[1] = (rank % (q*q)) / q;
+    rank_3d[2] = (rank % (q*q)) % q;
 
 
     // Number of tasks
@@ -72,10 +72,9 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
 
 
     std::vector<acc_data> gemm_results(nb*nb);
-    int reduce_size = (nb + q - 1) / q;
-    std::vector<reduction_data> reduce_results(nb * nb);
 
-    auto 3d_2_rank = [&](int i, int j, int k) { return ((j % q) * q + k % q) + (i % q) * q * q;};
+
+    auto rank3d21 = [&](int i, int j, int k) { return ((j % q) * q + k % q) + (i % q) * q * q;};
     auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
     MatrixXd A;
     A = MatrixXd::NullaryExpr(n*nb,n*nb, val);
@@ -91,7 +90,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
             blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
-            if (rank == bloc_2_rank)   {
+            if (rank == bloc_2_rank(ii,jj))   {
                 *blocs[ii+jj*nb]=L.block(ii*n,jj*n,n,n);
             }
             else {
@@ -152,7 +151,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         .set_fulfill([&](int k) {
             vector<vector<int>> fulfill(n_ranks);
             for (int i=k+1; i<nb; i++) {
-                fulfill[3d_2_rank(i,k,k)].push_back(i);
+                fulfill[rank3d21(i,k,k)].push_back(i);
                 
             }
             
@@ -237,10 +236,10 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             vector<vector<int2>> fulfill(n_ranks);
             for (int j=k+1; j<nb; j++) {
                 if (j<i) {
-                    fulfill[3d_2_rank(k,i,j)].push_back({i,j});
+                    fulfill[rank3d21(k,i,j)].push_back({i,j});
                 }
                 else {
-                    fulfill[3d_2_rank(k,j,i)].push_back({j,i});
+                    fulfill[rank3d21(k,j,i)].push_back({j,i});
                 }
                 
             }
@@ -318,7 +317,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         });
 
     auto am_accu = comm.make_active_msg([&](view<double>& Lijk, int &i, int &j, int& from) {
-        gemm_results[i+j*num_blocks].to_accumulate[from] = Map<MatrixXd>(Lijk.data(), n, n);
+        gemm_results[i+j*nb].to_accumulate[from] = Map<MatrixXd>(Lijk.data(), n, n);
         accu.fulfill_promise({from, i, j});
     });
 
@@ -350,13 +349,13 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 //printf("Gemm (%d, %d, %d) fulfilling Gemm (%d , %d, %d) on rank %d\n", k, i, j, k+1, i, j, comm_rank());
             }
             else {
-                int dest = 3d_2_rank(i,j,j);
+                int dest =rank3d21(i,j,j);
                 if (dest == rank) {
-                    accu.fulfill_promise({3d_rank[2], i, j});
+                    accu.fulfill_promise({rank_3d, i, j});
                 }
 
                 else {
-                    am_accu->send(dest, blocs[i+j*nb]->data(), i, j, 3d_rank[2]);
+                    am_accu->send(dest, blocs[i+j*nb]->data(), i, j, rank_3d[2]);
                 }
             }
             
@@ -418,7 +417,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         });
 
     accu.set_task([&](int3 kij) {
-            assert(block_2_rank(kij[1],kij[2]) == rank);
+            assert(bloc_2_rank(kij[1],kij[2]) == rank);
             int k=kij[0]; // Step (gemm's pivot)
             int i=kij[1]; // Row
             int j=kij[2]; // Col
@@ -436,7 +435,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             accu_us_t += 1e6 * elapsed(t_, t__);
         })
         .set_fulfill([&](int3 kij) {
-            assert(block_2_rank(kij[1],kij[2]) == rank);
+            assert(bloc_2_rank(kij[1],kij[2]) == rank);
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
@@ -449,21 +448,50 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             }
         })
         .set_indegree([&](int3 kij) {
-            assert(block_2_rank(kij[1],kij[2]) == rank);
+            assert(bloc_2_rank(kij[1],kij[2]) == rank);
             return 1;
         })
         .set_mapping([&](int3 kij) {
-            assert(block_2_rank(kij[1],kij[2]) == rank);
-            return block_2_thread(kij[1], kij[2]); // IMPORTANT. Every (i,j) should map to a given fixed thread
+            int k=kij[0];
+            int i=kij[1];
+            int j=kij[2];
+
+            return ((k*n*n+i+j*n)  % n_threads);// IMPORTANT. Every (i,j) should map to a given fixed thread
         })
-        .set_priority(gemm_block_2_prio)
+        .set_priority([&](int3 kij) {
+            int k=kij[0];
+            int i=kij[1];
+            int j=kij[2];
+            if (priority==-1) {
+                return 1.0;
+            }
+            if (priority==0) {
+                return 1.0;
+            }
+            if (priority==1) {
+                return 9.0*nb-3.0*j-6.0*k-2.0;
+            }
+            if (priority==2) {
+                return 9.0*nb-3.0*j-6.0*k-2.0;
+            }
+            if (priority==3) {
+                return (double)(nb-i)+nb*(9.0*nb-3.0*j-6.0*k-2.0);
+            }
+            else {
+                return 1.0*(double)(nb-i);
+            }
+
+        })
         .set_binding([&](int3 kij) {
             assert(block_2_rank(kij[1],kij[2]) == rank);
             return true; // IMPORTANT
         })
         .set_name([&](int3 kij) { // This is just for debugging and profiling
-            assert(block_2_rank(kij[1],kij[2]) == rank);
-            return accu_name(kij, rank);
+            assert(bloc_2_rank(kij[1],kij[2]) == rank);
+            int k=kij[0];
+            int i=kij[1];
+            int j=kij[2];
+            return "ACCUMU" + to_string(k) + "_" + to_string(i)+"_"+to_string(j)+"_"+to_string(comm_rank());
         });
 
 
