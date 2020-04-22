@@ -463,7 +463,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             }
         })
         .set_indegree([&](int3 kij) {
-            assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
+            assert(rank3d21(kij[1] % q, kij[2] % q,kij[2] % q) == rank);
             return 1;
         })
         .set_mapping([&](int3 kij) {
