@@ -229,6 +229,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         trsm_us_t += 1e6 * elapsed(t1, t2);
         //trsm_us_t += 1;
         printf("Running TRSM (%d, %d) on rank %d, %d, %d\n", i, k, rank_3d[0], rank_3d[1], rank_3d[2]);
+        cout<<(*blocs[i+k*nb])<<"\n";
 
       })
         .set_fulfill([&](int2 ki) {
@@ -569,7 +570,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     MatrixXd TrueL= lltOfA.matrixL();
     if (rank==0) {
     cout<<"True L:\n";
-    cout<<TrueL;
+    cout<<TrueL<<"\n";
     cout<<"L: \n";
     cout<<L;
     }
