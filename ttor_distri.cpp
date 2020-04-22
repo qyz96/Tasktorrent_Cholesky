@@ -40,6 +40,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     std::atomic<long long int> potrf_us_t(0);
     std::atomic<long long int> trsm_us_t(0);
     std::atomic<long long int> gemm_us_t(0);
+    std::atomic<long long int> accu_us_t(0);
 
     int q = static_cast<int>(cbrt(n_ranks));
     if (q * q * q != n_ranks)
@@ -317,7 +318,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         });
 
     auto am_accu = comm.make_active_msg([&](view<double>& Lijk, int &i, int &j, int& from) {
-        gemm_results[i+j*nb].to_accumulate[from] = Map<MatrixXd>(Lijk.data(), n, n);
+        *(gemm_results[i+j*nb].to_accumulate[from]) = Map<MatrixXd>(Lijk.data(), n, n);
         accu.fulfill_promise({from, i, j});
     });
 
@@ -351,11 +352,12 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             else {
                 int dest =rank3d21(i,j,j);
                 if (dest == rank) {
-                    accu.fulfill_promise({rank_3d, i, j});
+                    accu.fulfill_promise({rank_3d[2], i, j});
                 }
 
                 else {
-                    am_accu->send(dest, blocs[i+j*nb]->data(), i, j, rank_3d[2]);
+                    int kk = rank_3d[2];
+                    am_accu->send(dest, blocs[i+j*nb]->data(), i, j, kk);
                 }
             }
             
@@ -430,7 +432,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 gemm_results[i+j*nb].to_accumulate.erase(k);
             }
             timer t_ = wctime();
-            *blocks[i+j*nb] += (*Atmp);
+            *blocs[i+j*nb] += (*Atmp);
             timer t__ = wctime();
             accu_us_t += 1e6 * elapsed(t_, t__);
         })
