@@ -91,7 +91,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
             blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
-            if (rank == bloc_2_rank(ii,jj))   {
+            if (rank == rank3d21(ii,jj, jj))   {
                 *blocs[ii+jj*nb]=L.block(ii*n,jj*n,n,n);
             }
             else {
