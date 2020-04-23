@@ -238,10 +238,10 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             vector<vector<int2>> fulfill(n_ranks);
             for (int j=k+1; j<nb; j++) {
                 if (j<i) {
-                    fulfill[rank3d21(k,i,j)].push_back({i,j});
+                    fulfill[rank3d21(i,j,k)].push_back({i,j});
                 }
                 else {
-                    fulfill[rank3d21(k,j,i)].push_back({j,i});
+                    fulfill[rank3d21(j,i,k)].push_back({j,i});
                 }
                 
             }
