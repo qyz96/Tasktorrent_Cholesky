@@ -445,6 +445,8 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 Atmp = move(gemm_results[i+j*nb].to_accumulate[k]);
                 gemm_results[i+j*nb].to_accumulate.erase(k);
             }
+            cout<<(*blocks[i+j*nb])<<"\n";
+            cout<<(*Atmp)<<"\n";
             timer t_ = wctime();
             *blocs[i+j*nb] += (*Atmp);
             timer t__ = wctime();
