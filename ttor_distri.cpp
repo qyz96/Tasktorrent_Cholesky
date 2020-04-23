@@ -460,7 +460,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             if(i == j) {
                 potrf.fulfill_promise(i);
             } else {
-                trsm.fulfill_promise({i,j});
+                trsm.fulfill_promise({j,i});
             }
         })
         .set_indegree([&](int3 kij) {
