@@ -229,7 +229,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         trsm_us_t += 1e6 * elapsed(t1, t2);
         //trsm_us_t += 1;
         //printf("Running TRSM (%d, %d) on rank %d, %d, %d\n", i, k, rank_3d[0], rank_3d[1], rank_3d[2]);
-        cout<<(*blocs[i+k*nb])<<"\n";
+        //cout<<(*blocs[i+k*nb])<<"\n";
 
       })
         .set_fulfill([&](int2 ki) {
@@ -445,8 +445,8 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 Atmp = move(gemm_results[i+j*nb].to_accumulate[k]);
                 gemm_results[i+j*nb].to_accumulate.erase(k);
             }
-            cout<<(*blocs[i+j*nb])<<"\n";
-            cout<<(*Atmp)<<"\n";
+            //cout<<(*blocs[i+j*nb])<<"\n";
+            //cout<<(*Atmp)<<"\n";
             timer t_ = wctime();
             *blocs[i+j*nb] += (*Atmp);
             timer t__ = wctime();
@@ -582,7 +582,9 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     L1.solveInPlace(b);
     L1.transpose().solveInPlace(b);
     double error = (b - x).norm() / x.norm();
-    cout << "Error solve: " << error << endl;
+    if (rank == 0) {
+        cout << "Error solve: " << error << endl;
+    }
 /*     std::ofstream logfile;
     string filename = "ttor_distributed_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
     logfile.open(filename);
