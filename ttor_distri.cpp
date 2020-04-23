@@ -147,7 +147,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
           timer t2 = wctime();
           potrf_us_t += 1e6 * elapsed(t1, t2);
           //potrf_us_t += 1;
-          printf("Running POTRF %d on rank %d, %d, %d\n", k, rank_3d[0], rank_3d[1], rank_3d[2]);
+          //printf("Running POTRF %d on rank %d, %d, %d\n", k, rank_3d[0], rank_3d[1], rank_3d[2]);
       })
         .set_fulfill([&](int k) {
             vector<vector<int>> fulfill(n_ranks);
@@ -228,7 +228,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         timer t2 = wctime();
         trsm_us_t += 1e6 * elapsed(t1, t2);
         //trsm_us_t += 1;
-        printf("Running TRSM (%d, %d) on rank %d, %d, %d\n", i, k, rank_3d[0], rank_3d[1], rank_3d[2]);
+        //printf("Running TRSM (%d, %d) on rank %d, %d, %d\n", i, k, rank_3d[0], rank_3d[1], rank_3d[2]);
         cout<<(*blocs[i+k*nb])<<"\n";
 
       })
@@ -340,7 +340,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, n, n, -1.0,blocs[i+k*nb]->data(), n, blocs[j+k*nb]->data(), n, 1.0, blocs[i+j*nb]->data(), n);
             }
             timer t2 = wctime();
-            printf("Running GEMM (%d, %d, %d) on rank %d, %d, %d\n", i, j, k, rank_3d[0], rank_3d[1], rank_3d[2]);
+            //printf("Running GEMM (%d, %d, %d) on rank %d, %d, %d\n", i, j, k, rank_3d[0], rank_3d[1], rank_3d[2]);
             gemm_us_t += 1e6 * elapsed(t1,t2);
             //gemm_us_t += 1;
             
@@ -357,11 +357,11 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             else {
                 int dest =rank3d21(i % q ,j % q, j % q);
                 if (dest == rank) {
-                    printf("Gemm (%d, %d, %d) fulfilling ACCUMU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[2], i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
+                    //printf("Gemm (%d, %d, %d) fulfilling ACCUMU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[2], i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
                     auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
                     std::unique_ptr<MatrixXd> Atmp;
                     Atmp = make_unique<MatrixXd>(n, n);
-                    *Atmp =   MatrixXd::Zero(n,n);
+                    *Atmp = MatrixXd::Zero(n,n);
                     gemm_results[i+j*nb].to_accumulate[rank_3d[2]] = move(Atmp);
                     accu.fulfill_promise({rank_3d[2], i, j});
                 }
@@ -369,7 +369,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 else {
                     int kk = rank_3d[2];
                     auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
-                    printf("Gemm (%d, %d, %d) Sending ACCUMU (%d, %d, %d) to rank %d, %d, %d\n", k, i, j, rank_3d[2], i, j, i, j, j);
+                    //printf("Gemm (%d, %d, %d) Sending ACCUMU (%d, %d, %d) to rank %d, %d, %d\n", k, i, j, rank_3d[2], i, j, i, j, j);
                     am_accu->send(dest, Lij, i, j, kk);
                 }
             }
@@ -437,7 +437,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             int i=kij[1]; // Row
             int j=kij[2]; // Col
             assert(j <= i);
-            printf("Running ACCU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
+            //printf("Running ACCU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
             //assert(k < j);
             std::unique_ptr<Eigen::MatrixXd> Atmp;
             {
@@ -451,7 +451,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             *blocs[i+j*nb] += (*Atmp);
             timer t__ = wctime();
             accu_us_t += 1e6 * elapsed(t_, t__);
-            printf("Running ACCU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
+            //printf("Running ACCU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
         })
         .set_fulfill([&](int3 kij) {
             assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
@@ -570,19 +570,19 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     */
     LLT<MatrixXd> lltOfA(A);
     MatrixXd TrueL= lltOfA.matrixL();
-    if (rank==0) {
+/*     if (rank==0) {
     cout<<"True L:\n";
     cout<<TrueL<<"\n";
     cout<<"L: \n";
     cout<<L;
-    }
+    } */
     VectorXd x = VectorXd::Random(n * nb);
     VectorXd b = A*x;
     VectorXd bref = b;
     L1.solveInPlace(b);
     L1.transpose().solveInPlace(b);
     double error = (b - x).norm() / x.norm();
-    //cout << "Error solve: " << error << endl;
+    cout << "Error solve: " << error << endl;
 /*     std::ofstream logfile;
     string filename = "ttor_distributed_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
     logfile.open(filename);
