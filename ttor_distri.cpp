@@ -555,7 +555,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         
     }
     if (rank==0) {
-        cout<<"Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
+        cout<<"N_rank "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
     }
     /*
     printf("Potrf time: %e\n", potrf_us_t.load() * 1e-6);
