@@ -341,8 +341,8 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             }
             timer t2 = wctime();
             //printf("Running GEMM (%d, %d, %d) on rank %d, %d, %d\n", i, j, k, rank_3d[0], rank_3d[1], rank_3d[2]);
-            gemm_us_t += 1e6 * elapsed(t1,t2);
-            //gemm_us_t += 1;
+            //gemm_us_t += 1e6 * elapsed(t1,t2);
+            gemm_us_t += 1;
             
 
       })
@@ -563,6 +563,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     printf("Gemm time: %e\n", gemm_us_t.load() * 1e-6);
     printf("Rank %d Total Computation Time: %e\n", rank, potrf_us_t.load() * 1e-6+trsm_us_t.load() * 1e-6+gemm_us_t.load() * 1e-6);
     */
+    printf("Rank %d number of GEMMs: %d\n", rank, gemm_us_t.load());
     /*
     printf("Potrf Time: %f\n", potrf_us_t.load());
     printf("Trsm Time: %f\n", trsm_us_t.load());
