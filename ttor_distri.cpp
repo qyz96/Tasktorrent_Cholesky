@@ -32,7 +32,7 @@ typedef array<int, 3> int3;
 
 
 //Test Test2
-void tuto_1(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority)
+void tuto_1(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test, int LOG)
 {
     const int rank = comm_rank();
     const int n_ranks = comm_size();
@@ -77,12 +77,14 @@ void tuto_1(int n_threads, int verb, int n, int nb, int n_col, int n_row, int pr
     Taskflow<int2> trsm(&tp, verb);
     Taskflow<int3> gemm(&tp, verb);
 
-    /*
+    
     DepsLogger dlog(1000000);
     Logger log(1000000);
-    tp.set_logger(&log);
-    comm.set_logger(&log);
-    */
+    if (LOG)  {
+        tp.set_logger(&log);
+        comm.set_logger(&log);
+    }
+    
 
     // Create active message
     auto am_trsm = comm.make_active_msg( 
@@ -376,30 +378,29 @@ void tuto_1(int n_threads, int verb, int n, int nb, int n_col, int n_row, int pr
     timer t1 = wctime();
     
     MPI_Status status;
-    /*
-    for (int ii=0; ii<nb; ii++) {
-        for (int jj=0; jj<nb; jj++) {
-            if (jj<=ii)  {
-            if (rank==0 && rank!=bloc_2_rank(ii,jj)) {
-                MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, (ii+jj*nb)%n_ranks, (ii+jj*nb)%n_ranks, MPI_COMM_WORLD, &status);
-                }
+    if (test)   {
+        for (int ii=0; ii<nb; ii++) {
+            for (int jj=0; jj<nb; jj++) {
+                if (jj<=ii)  {
+                if (rank==0 && rank!=bloc_2_rank(ii,jj)) {
+                    MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, (ii+jj*nb)%n_ranks, (ii+jj*nb)%n_ranks, MPI_COMM_WORLD, &status);
+                    }
 
-            else if (rank==bloc_2_rank(ii,jj)) {
-                MPI_Send(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, 0, (ii+jj*nb)%n_ranks, MPI_COMM_WORLD);
+                else if (rank==bloc_2_rank(ii,jj) &&  rank != 0) {
+                    MPI_Send(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, 0, (ii+jj*nb)%n_ranks, MPI_COMM_WORLD);
+                    }
                 }
             }
         }
+        
     }
-    */
-    
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
             L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
         }
     }
-    auto L1=L.triangularView<Lower>();
     if (rank==0) {
-        cout<<"Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
+        cout<<"Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
     }
     /*
     printf("Potrf time: %e\n", potrf_us_t.load() * 1e-6);
@@ -415,18 +416,29 @@ void tuto_1(int n_threads, int verb, int n, int nb, int n_col, int n_row, int pr
     printf("Rank %d Total Computation Time: %f\n", rank, trsm_us_t.load()+potrf_us_t.load()+gemm_us_t.load());
     */
 
-    VectorXd x = VectorXd::Random(n * nb);
-    VectorXd b = A*x;
-    VectorXd bref = b;
-    L1.solveInPlace(b);
-    L1.transpose().solveInPlace(b);
-    double error = (b - x).norm() / x.norm();
-    //cout << "Error solve: " << error << endl;
-/*     std::ofstream logfile;
-    string filename = "ttor_distributed_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
-    logfile.open(filename);
-    logfile << log;
-    logfile.close(); */
+    if (test)   {
+        auto L1=L.triangularView<Lower>();
+        LLT<MatrixXd> lltOfA(A);
+        MatrixXd TrueL= lltOfA.matrixL();
+
+        VectorXd x = VectorXd::Random(n * nb);
+        VectorXd b = A*x;
+        VectorXd bref = b;
+        L1.solveInPlace(b);
+        L1.transpose().solveInPlace(b);
+        double error = (b - x).norm() / x.norm();
+        if (rank == 0) {
+            cout << "Error solve: " << error << endl;
+        }
+    }
+
+    if (LOG)  {
+        std::ofstream logfile;
+        string filename = "ttor_3Dcholesky_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
+        logfile.open(filename);
+        logfile << log;
+        logfile.close();
+    }
 
 }
 
@@ -448,6 +460,8 @@ int main(int argc, char **argv)
     int n_col=1;
     int n_row=1;
     int priority=0;
+    int test=0;
+    int log=0;
 
 
     if (argc >= 2)
@@ -475,8 +489,16 @@ int main(int argc, char **argv)
         priority=atoi(argv[7]);
     }
 
+    if (argc >= 9) {
+        test=atoi(argv[8]);
+    }
 
-    tuto_1(n_threads, verb, n, nb, n_col, n_row, priority);
+    if (argc >= 10) {
+        log = atoi(argv[9]);
+    }
+
+
+    cholesky(n_threads, verb, n, nb, n_col, n_row, priority, test, log);
 
     MPI_Finalize();
 }
