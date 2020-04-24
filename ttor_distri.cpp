@@ -32,7 +32,7 @@ typedef array<int, 3> int3;
 
 
 //Test Test2
-void tuto_1(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test, int LOG)
+void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test, int LOG)
 {
     const int rank = comm_rank();
     const int n_ranks = comm_size();
