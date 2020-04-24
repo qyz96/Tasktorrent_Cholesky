@@ -552,7 +552,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
             }
         }
-        auto L1=L.triangularView<Lower>();
+        
     }
     if (rank==0) {
         cout<<"Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
@@ -571,6 +571,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     */
 
     if (test)   {
+        auto L1=L.triangularView<Lower>();
         LLT<MatrixXd> lltOfA(A);
         MatrixXd TrueL= lltOfA.matrixL();
 
