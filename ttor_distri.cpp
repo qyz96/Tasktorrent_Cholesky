@@ -280,8 +280,8 @@ void tuto_1(int n_threads, int verb, int n, int nb, int n_col, int n_row, int pr
                 cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, n, n, -1.0,blocs[i+k*nb]->data(), n, blocs[j+k*nb]->data(), n, 1.0, blocs[i+j*nb]->data(), n);
             }
             timer t2 = wctime();
-            gemm_us_t += 1e6 * elapsed(t1,t2);
-            //gemm_us_t += 1;
+            //gemm_us_t += 1e6 * elapsed(t1,t2);
+            gemm_us_t += 1;
             
 
       })
@@ -407,6 +407,7 @@ void tuto_1(int n_threads, int verb, int n, int nb, int n_col, int n_row, int pr
     printf("Gemm time: %e\n", gemm_us_t.load() * 1e-6);
     printf("Rank %d Total Computation Time: %e\n", rank, potrf_us_t.load() * 1e-6+trsm_us_t.load() * 1e-6+gemm_us_t.load() * 1e-6);
     */
+    printf("Rank %d Gemms Time: %d\n", rank, gemm_us_t.load());
     /*
     printf("Potrf Time: %f\n", potrf_us_t.load());
     printf("Trsm Time: %f\n", trsm_us_t.load());
