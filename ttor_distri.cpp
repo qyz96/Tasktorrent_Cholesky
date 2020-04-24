@@ -33,7 +33,7 @@ typedef array<int, 3> int3;
 
 
 //Test Test2
-void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test)
+void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test, int log)
 {
     const int rank = comm_rank();
     const int n_ranks = comm_size();
@@ -115,12 +115,15 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     Taskflow<int3> gemm(&tp, verb);
     Taskflow<int3> accu(&tp, verb);
 
-    /*
+    
     DepsLogger dlog(1000000);
     Logger log(1000000);
-    tp.set_logger(&log);
-    comm.set_logger(&log);
-    */
+
+    if (log)  {
+        tp.set_logger(&log);
+        comm.set_logger(&log);
+    }
+    
 
     // Create active message
     auto am_trsm = comm.make_active_msg( 
@@ -555,7 +558,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         
     }
     if (rank==0) {
-        cout<<"N_rank "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
+        cout<<"Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
     }
     /*
     printf("Potrf time: %e\n", potrf_us_t.load() * 1e-6);
@@ -586,11 +589,14 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             cout << "Error solve: " << error << endl;
         }
     }
-/*     std::ofstream logfile;
-    string filename = "ttor_distributed_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
-    logfile.open(filename);
-    logfile << log;
-    logfile.close(); */
+
+    if (log)  {
+        std::ofstream logfile;
+        string filename = "ttor_3Dcholesky_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
+        logfile.open(filename);
+        logfile << log;
+        logfile.close();
+    }
 
 }
 
@@ -613,6 +619,7 @@ int main(int argc, char **argv)
     int n_row=1;
     int priority=0;
     int test=0;
+    int log=0;
 
 
     if (argc >= 2)
@@ -644,8 +651,12 @@ int main(int argc, char **argv)
         test=atoi(argv[8]);
     }
 
+    if (argc >= 10) {
+        log = atoi(argv[9]);
+    }
 
-    cholesky(n_threads, verb, n, nb, n_col, n_row, priority, test);
+
+    cholesky(n_threads, verb, n, nb, n_col, n_row, priority, test, log);
 
     MPI_Finalize();
 }
