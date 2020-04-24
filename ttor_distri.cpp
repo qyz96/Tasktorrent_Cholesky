@@ -33,7 +33,7 @@ typedef array<int, 3> int3;
 
 
 //Test Test2
-void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority)
+void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test)
 {
     const int rank = comm_rank();
     const int n_ranks = comm_size();
@@ -531,28 +531,29 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     timer t1 = wctime();
     
     MPI_Status status;
-    
-    for (int ii=0; ii<nb; ii++) {
-        for (int jj=0; jj<nb; jj++) {
-            if (jj<=ii)  {
-            if (rank==0 && rank!=rank3d21(ii, jj, jj)) {
-                MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, rank3d21(ii, jj, jj), 0, MPI_COMM_WORLD, &status);
-                }
+    if (test)  {
+        for (int ii=0; ii<nb; ii++) {
+            for (int jj=0; jj<nb; jj++) {
+                if (jj<=ii)  {
+                if (rank==0 && rank!=rank3d21(ii, jj, jj)) {
+                    MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, rank3d21(ii, jj, jj), 0, MPI_COMM_WORLD, &status);
+                    }
 
-            else if (rank==rank3d21(ii, jj, jj) && rank != 0) {
-                MPI_Send(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+                else if (rank==rank3d21(ii, jj, jj) && rank != 0) {
+                    MPI_Send(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+                    }
                 }
             }
         }
-    }
-    
-    
-    for (int ii=0; ii<nb; ii++) {
-        for (int jj=0; jj<nb; jj++) {
-            L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
+        
+        
+        for (int ii=0; ii<nb; ii++) {
+            for (int jj=0; jj<nb; jj++) {
+                L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
+            }
         }
+        auto L1=L.triangularView<Lower>();
     }
-    auto L1=L.triangularView<Lower>();
     if (rank==0) {
         cout<<"Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
     }
@@ -568,22 +569,20 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     printf("Gemms Time: %f\n", gemm_us_t.load());
     printf("Rank %d Total Computation Time: %f\n", rank, trsm_us_t.load()+potrf_us_t.load()+gemm_us_t.load());
     */
-    LLT<MatrixXd> lltOfA(A);
-    MatrixXd TrueL= lltOfA.matrixL();
-/*     if (rank==0) {
-    cout<<"True L:\n";
-    cout<<TrueL<<"\n";
-    cout<<"L: \n";
-    cout<<L;
-    } */
-    VectorXd x = VectorXd::Random(n * nb);
-    VectorXd b = A*x;
-    VectorXd bref = b;
-    L1.solveInPlace(b);
-    L1.transpose().solveInPlace(b);
-    double error = (b - x).norm() / x.norm();
-    if (rank == 0) {
-        cout << "Error solve: " << error << endl;
+
+    if (test)   {
+        LLT<MatrixXd> lltOfA(A);
+        MatrixXd TrueL= lltOfA.matrixL();
+
+        VectorXd x = VectorXd::Random(n * nb);
+        VectorXd b = A*x;
+        VectorXd bref = b;
+        L1.solveInPlace(b);
+        L1.transpose().solveInPlace(b);
+        double error = (b - x).norm() / x.norm();
+        if (rank == 0) {
+            cout << "Error solve: " << error << endl;
+        }
     }
 /*     std::ofstream logfile;
     string filename = "ttor_distributed_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
@@ -611,6 +610,7 @@ int main(int argc, char **argv)
     int n_col=1;
     int n_row=1;
     int priority=0;
+    int test=0;
 
 
     if (argc >= 2)
@@ -638,8 +638,12 @@ int main(int argc, char **argv)
         priority=atoi(argv[7]);
     }
 
+    if (argc >= 9) {
+        test=atoi(argv[8]);
+    }
 
-    cholesky(n_threads, verb, n, nb, n_col, n_row, priority);
+
+    cholesky(n_threads, verb, n, nb, n_col, n_row, priority, test);
 
     MPI_Finalize();
 }
