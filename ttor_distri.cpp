@@ -119,7 +119,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     DepsLogger dlog(1000000);
     Logger log(1000000);
 
-    if (log)  {
+    if (LOG)  {
         tp.set_logger(&log);
         comm.set_logger(&log);
     }
