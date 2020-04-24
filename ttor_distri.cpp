@@ -434,7 +434,7 @@ void tuto_1(int n_threads, int verb, int n, int nb, int n_col, int n_row, int pr
 
     if (LOG)  {
         std::ofstream logfile;
-        string filename = "ttor_3Dcholesky_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
+        string filename = "ttor_2Dcholesky_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
         logfile.open(filename);
         logfile << log;
         logfile.close();
