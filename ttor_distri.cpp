@@ -33,7 +33,7 @@ typedef array<int, 3> int3;
 
 
 //Test Test2
-void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test, int log)
+void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test, int LOG)
 {
     const int rank = comm_rank();
     const int n_ranks = comm_size();
@@ -590,7 +590,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         }
     }
 
-    if (log)  {
+    if (LOG)  {
         std::ofstream logfile;
         string filename = "ttor_3Dcholesky_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
         logfile.open(filename);
