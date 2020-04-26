@@ -578,8 +578,10 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         auto L1=L.triangularView<Lower>();
         LLT<MatrixXd> lltOfA(A);
         MatrixXd TrueL= lltOfA.matrixL();
-        cout << "True L:\n"<<TrueL<<"\n";
-        cout << "L: \n"<<L<<"\n";
+        if (rank==0) {
+            cout << "True L:\n"<<TrueL<<"\n";
+            cout << "L: \n"<<L<<"\n";
+        }
         VectorXd x = VectorXd::Random(n * nb);
         VectorXd b = A*x;
         VectorXd bref = b;
