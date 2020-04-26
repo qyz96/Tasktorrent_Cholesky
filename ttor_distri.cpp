@@ -539,7 +539,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             for (int jj=0; jj<nb; jj++) {
                 if (jj<=ii)  {
                 if (rank==0 && rank!=rank2d21(ii, jj)) {
-                    MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, rank2d21(ii, jj, jj), 0, MPI_COMM_WORLD, &status);
+                    MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, rank2d21(ii, jj), 0, MPI_COMM_WORLD, &status);
                     }
 
                 else if (rank==rank2d21(ii, jj) && rank != 0) {
