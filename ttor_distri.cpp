@@ -471,10 +471,8 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             }
         })
         .set_indegree([&](int3 kij) {
-            if (rank3d21(kij[1] % q, kij[2] % q,kij[2] % q) != rank) {
-                printf("ACCU %d, %d, %d and current rank %d, %d, %d", kij[0], kij[1], kij[2], rank_3d[0], rank_3d[1], rank_3d[2]);
-            }
-            assert(rank3d21(kij[1] % q, kij[2] % q,kij[2] % q) == rank);
+
+            //assert(rank3d21(kij[1] % q, kij[2] % q,kij[2] % q) == rank);
             
             return 1;
         })
@@ -514,7 +512,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             return true; // IMPORTANT
         })
         .set_name([&](int3 kij) { // This is just for debugging and profiling
-            assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
+            //assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
