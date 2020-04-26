@@ -76,6 +76,8 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
 
 
     auto rank3d21 = [&](int i, int j, int k) { return ((j % q) * q + k % q) + (i % q) * q * q;};
+    auto rank2d21 = [&](int i, int j) { return (j % n_col) * n_row + i % n_row;};
+    auto rank1d21 = [&](int k) { return k % n_ranks; };
     auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
     MatrixXd A;
     A = MatrixXd::NullaryExpr(n*nb,n*nb, val);
@@ -91,7 +93,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
             blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
-            if (rank == rank3d21(ii,jj, jj))   {
+            if (rank == rank2d21(ii,jj))   {
                 *blocs[ii+jj*nb]=L.block(ii*n,jj*n,n,n);
             }
             else {
@@ -155,7 +157,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         .set_fulfill([&](int k) {
             vector<vector<int>> fulfill(n_ranks);
             for (int i=k+1; i<nb; i++) {
-                fulfill[rank3d21(i,k,k)].push_back(i);
+                fulfill[rank2d21(i, k)].push_back(i);
                 
             }
             
@@ -358,7 +360,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 //printf("Gemm (%d, %d, %d) fulfilling Gemm (%d , %d, %d) on rank %d\n", k, i, j, k+1, i, j, comm_rank());
             }
             else {
-                int dest =rank3d21(i % q ,j % q, j % q);
+                int dest = (i==j) ? rank1d21(i) : rank2d21(i, j);
                 if (dest == rank) {
                     //printf("Gemm (%d, %d, %d) fulfilling ACCUMU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[2], i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
                     auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
@@ -435,7 +437,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
         });
 
     accu.set_task([&](int3 kij) {
-            assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
+            //assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
             int k=kij[0]; // Step (gemm's pivot)
             int i=kij[1]; // Row
             int j=kij[2]; // Col
@@ -457,7 +459,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
             //printf("Running ACCU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
         })
         .set_fulfill([&](int3 kij) {
-            assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
+            //assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
@@ -508,7 +510,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
 
         })
         .set_binding([&](int3 kij) {
-            assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
+            //assert(rank3d21(kij[1],kij[2],kij[2]) == rank);
             return true; // IMPORTANT
         })
         .set_name([&](int3 kij) { // This is just for debugging and profiling
