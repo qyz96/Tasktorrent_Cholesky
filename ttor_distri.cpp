@@ -374,7 +374,7 @@ void cholesky(int n_threads, int verb, int n, int nb, int n_col, int n_row, int 
                 else {
                     int kk = rank_3d[2];
                     auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
-                    printf("Gemm (%d, %d, %d) Sending ACCUMU (%d, %d, %d) to rank %d, %d, %d\n", k, i, j, rank_3d[2], i, j, i, j, j);
+                    printf("Gemm (%d, %d, %d) Sending ACCUMU (%d, %d, %d) to rank %d, %d\n", k, i, j, rank_3d[2], i, j, dest % n_row, dest / n_row);
                     am_accu->send(dest, Lij, i, j, kk);
                 }
             }
