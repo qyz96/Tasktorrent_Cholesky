@@ -879,15 +879,18 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             std::unique_ptr<Eigen::MatrixXd> Atmp;
             {
                 lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
-                Atmp = move(gemm_results[i+j*nb].to_accumulate[k]);
+                timer t_ = wctime();
+                *blocs[i+j*nb] += (*gemm_results[i+j*nb].to_accumulate[k]);
+                timer t__ = wctime();
+                accu_us_t += 1e6 * elapsed(t_, t__);
                 gemm_results[i+j*nb].to_accumulate.erase(k);
             }
             //cout<<(*blocs[i+j*nb])<<"\n";
             //cout<<(*Atmp)<<"\n";
-            timer t_ = wctime();
-            *blocs[i+j*nb] += (*Atmp);
-            timer t__ = wctime();
-            accu_us_t += 1e6 * elapsed(t_, t__);
+            //timer t_ = wctime();
+            //*blocs[i+j*nb] += (*Atmp);
+            //timer t__ = wctime();
+            //accu_us_t += 1e6 * elapsed(t_, t__);
             //printf("Running ACCU (%d, %d, %d) on rank %d, %d\n", k, i, j, rank % n_row, rank / n_row);
         })
         .set_fulfill([&](int3 kij) {
