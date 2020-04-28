@@ -111,14 +111,15 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
           //cout<<"Running potrf "<<k<<" on rank "<<rank<<"\n";
       })
         .set_fulfill([&](int k) {
-            vector<vector<int>> fulfill(n_ranks);
+            map<int,vector<int>> fulfill;
             for (int i=k+1; i<nb; i++) {
                 fulfill[bloc_2_rank(i,k)].push_back(i);
                 
             }
             
-            for (int r = 0; r<n_ranks; r++) // Looping through all outgoing dependency edges
+            for (auto& rf: fulfill) // Looping through all outgoing dependency edges
             {
+                int r = rf.first;
                 if (rank == r) {
                     for (auto& i: fulfill[r]) {
                         trsm.fulfill_promise({k,i});
@@ -567,14 +568,15 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
           //printf("Running POTRF %d on rank %d, %d, %d\n", k, rank_3d[0], rank_3d[1], rank_3d[2]);
       })
         .set_fulfill([&](int k) {
-            vector<vector<int>> fulfill(n_ranks);
+            map<int, vector<int>> fulfill;
             for (int i=k+1; i<nb; i++) {
                 fulfill[rank2d21(i, k)].push_back(i);
                 
             }
             
-            for (int r = 0; r<n_ranks; r++) // Looping through all outgoing dependency edges
+            for (auto& rf: fulfill) // Looping through all outgoing dependency edges
             {
+                int r = rf.first;
                 if (rank == r) {
                     for (auto& i: fulfill[r]) {
                         trsm.fulfill_promise({k,i});
