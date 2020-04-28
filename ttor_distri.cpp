@@ -498,6 +498,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         for (int jj=0; jj<nb; jj++) {
             blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
             int loc = rank2d21(ii,jj);
+            auto val_loc = [&](int i, int j) { return val(ii*n+i,jj*n+j); };
             if (rank == loc)   {
                 *blocs[ii+jj*nb]=MatrixXd::NullaryExpr(n, n, val_loc);
             }
