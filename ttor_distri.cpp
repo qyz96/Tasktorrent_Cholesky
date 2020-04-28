@@ -660,6 +660,8 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 }
                 
             }
+
+            /*
             for (int r=0; r<n_ranks; r++)   // Looping through all outgoing dependency edges
             {
 
@@ -678,6 +680,26 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 }
                 
 
+            }
+            */
+
+            for (int qi=0; qi<q; qi++) {
+                for (int qj=0; qj<q; qj++) {
+                    int r = rank3d21(qi, qj, k);
+                    if (r == rank) {
+                    for (auto& ij : fulfill[r]) {
+                        gemm.fulfill_promise({k,ij[0],ij[1]});
+                        //printf("Trsm (%d, %d) fulfilling local Gemm (%d, %d, %d) on rank %d\n", k, i, k, ij[0], ij[1], comm_rank());
+                    }
+                    }
+                    else {
+                        //cout<<"Sending data from "<<rank<<" to "<<r<<"\n";
+                        auto Lijv = view<double>(blocs[i+k*nb]->data(), n*n);
+                        auto ijsv = view<int2>(fulfill[r].data(), fulfill[r].size());
+                        am_gemm->send(r, Lijv, i, k, ijsv);
+
+                    }
+                }
             }
         })
         .set_indegree([&](int2 ki) {
