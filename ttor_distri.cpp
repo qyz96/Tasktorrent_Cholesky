@@ -507,7 +507,9 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             }
             
             else {
-                blocs[ii+jj*nb]=make_unique<MatrixXd>();
+                //blocs[ii+jj*nb]=make_unique<MatrixXd>();
+                blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
+                *blocs[ii+jj*nb]=MatrixXd::Zero(n, n);
             }
         }
     }
