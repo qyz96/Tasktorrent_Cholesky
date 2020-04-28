@@ -496,18 +496,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         return r;
     };
 
-    for (int ii=0; ii<nb; ii++) {
-        for (int jj=0; jj<nb; jj++) {
-            blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
-            int loc = (ii==jj) ? rank1d21(ii) : rank2d21(ii,jj);
-            if (rank == loc)   {
-                *blocs[ii+jj*nb]=L.block(ii*n,jj*n,n,n);
-            }
-            else {
-                *blocs[ii+jj*nb] = MatrixXd::Zero(n,n);
-            }
-        }
-    }
+
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
             auto val_loc = [&](int i, int j) { return val(ii*n+i,jj*n+j); };
@@ -785,7 +774,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 //printf("Gemm (%d, %d, %d) fulfilling Gemm (%d , %d, %d) on rank %d\n", k, i, j, k+1, i, j, comm_rank());
             }
             else {
-                int dest = (i==j) ? rank1d21(i) : rank2d21(i, j);
+                int dest = rank2d21(i, j);
                 if (dest == rank) {
                     //printf("Gemm (%d, %d, %d) fulfilling ACCUMU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[2], i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
                     auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
