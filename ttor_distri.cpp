@@ -488,8 +488,8 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     int ny = (nb+n_col-1)/n_col;
     int nx3d = (nb + q - 1) / q;
     int ny3d = (nb + q - 1) / q;
-    vector<unique_ptr<MatrixXd>> blocs(nx*ny);
-    vector<unique_ptr<MatrixXd>> blocs_ac(nx3d*ny3d);
+    vector<MatrixXd*> blocs(nx*ny);
+    vector<MatrixXd*> blocs_ac(nx3d*ny3d);
     auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
     MatrixXd A;
     MatrixXd L;
