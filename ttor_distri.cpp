@@ -491,8 +491,15 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     vector<unique_ptr<MatrixXd>> blocs(nx*ny);
     vector<unique_ptr<MatrixXd>> blocs_ac(nx3d*ny3d);
     auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
+    MatrixXd A;
     MatrixXd L;
-    L = MatrixXd::NullaryExpr(n*nb,n*nb, val);
+    if ((rank==0) && (test))  {
+        A = MatrixXd::NullaryExpr(n*nb,n*nb, val);
+        L = A;
+    }
+
+
+    
 
     auto bloc_2_rank = [&](int i, int j) {
         int r = (j % n_col) * n_row + (i % n_row);
@@ -951,25 +958,36 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     timer t1 = wctime();
     
     MPI_Status status;
-    if (test)  {
+    vector<unique_ptr<MatrixXd>> blocs(nb*nb);
+
+    if (test)   {
+        
         for (int ii=0; ii<nb; ii++) {
             for (int jj=0; jj<nb; jj++) {
+                if (rank==0) {
+                    blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
+                }
                 if (jj<=ii)  {
-                if (rank==0 && rank!=rank2d21(ii, jj)) {
-                    MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, rank2d21(ii, jj), 0, MPI_COMM_WORLD, &status);
+                if (rank==0 && rank!=bloc_2_rank(ii,jj)) {
+                    MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, rank2d21(ii,jj), 0, MPI_COMM_WORLD, &status);
                     }
 
-                else if (rank==rank2d21(ii, jj) && rank != 0) {
-                    MPI_Send(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+                else if (rank==0) {
+                    *blocs[ii+jj*nb]=*block(ii,jj);
+                }
+
+                else if (rank==bloc_2_rank(ii,jj) &&  rank != 0) {
+                    MPI_Send(block(ii,jj)->data(), n*n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
                     }
                 }
             }
         }
-        
-        
-        for (int ii=0; ii<nb; ii++) {
-            for (int jj=0; jj<nb; jj++) {
-                L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
+
+        if (rank==0)  {
+            for (int ii=0; ii<nb; ii++) {
+                for (int jj=0; jj<nb; jj++) {
+                    L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
+                }
             }
         }
         
