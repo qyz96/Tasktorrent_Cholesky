@@ -490,6 +490,9 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     int ny3d = (nb + q - 1) / q;
     vector<unique_ptr<MatrixXd>> blocs(nx*ny);
     vector<unique_ptr<MatrixXd>> blocs_ac(nx3d*ny3d);
+    auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
+    MatrixXd L;
+    L = MatrixXd::NullaryExpr(n*nb,n*nb, val);
 
     auto bloc_2_rank = [&](int i, int j) {
         int r = (j % n_col) * n_row + (i % n_row);
@@ -514,8 +517,8 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         }
     }
 
-    auto block = [&](int i, int j) {return blocs[(i/n_row)+(j/n_col)*ny];}
-    auto block_ac = [&](int i, int j) {return blocs_ac[(i/q)+(j/q)*ny3d];}
+    auto block = [&](int i, int j) {return blocs[(i/n_row)+(j/n_col)*ny];};
+    auto block_ac = [&](int i, int j) {return blocs_ac[(i/q)+(j/q)*ny3d];};
 
 
     // Map tasks to rank
@@ -867,7 +870,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             //cout<<(*blocs[i+j*nb])<<"\n";
             //cout<<(*Atmp)<<"\n";
             timer t_ = wctime();
-            *blocs[i+j*nb] += (*Atmp);
+            *block(i,j) += (*Atmp);
             timer t__ = wctime();
             accu_us_t += 1e6 * elapsed(t_, t__);
             //printf("Running ACCU (%d, %d, %d) on rank %d, %d\n", k, i, j, rank % n_row, rank / n_row);
