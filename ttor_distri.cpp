@@ -512,17 +512,17 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         for (int jj=0; jj<nb; jj++) {
             auto val_loc = [&](int i, int j) { return val(ii*n+i,jj*n+j); };
             if(rank2d21(ii,jj) == rank) {
-                blocks[ii+jj*nb]=make_unique<MatrixXd>(n, n);
-                *blocks[ii+jj*nb]=MatrixXd::NullaryExpr(n, n, val_loc);
+                blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
+                *blocs[ii+jj*nb]=MatrixXd::NullaryExpr(n, n, val_loc);
             } 
 
             else if (((ii % q) == rank_3d[0]) && ((jj % q) == rank_3d[1])) {
-                blocks[ii+jj*nb]=make_unique<MatrixXd>(n, n);
-                *blocks[ii+jj*nb]=MatrixXd::Zero(n, n);
+                blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
+                *blocs[ii+jj*nb]=MatrixXd::Zero(n, n);
             }
             
             else {
-                blocks[ii+jj*nb]=make_unique<MatrixXd>();
+                blocs[ii+jj*nb]=make_unique<MatrixXd>();
             }
         }
     }
