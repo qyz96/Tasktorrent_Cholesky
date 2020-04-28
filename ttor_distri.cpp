@@ -997,6 +997,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 }
             }
         }
+        if (rank == 0) {
         auto L1=L.triangularView<Lower>();
         LLT<MatrixXd> lltOfA(A);
         MatrixXd TrueL= lltOfA.matrixL();
@@ -1010,7 +1011,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         L1.solveInPlace(b);
         L1.transpose().solveInPlace(b);
         double error = (b - x).norm() / x.norm();
-        if (rank == 0) {
+        
             cout << "Error solve: " << error << endl;
         }
     }
