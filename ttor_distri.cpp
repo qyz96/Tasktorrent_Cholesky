@@ -484,10 +484,6 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     auto rank3d21 = [&](int i, int j, int k) { return ((j % q) * q + k % q) + (i % q) * q * q;};
     auto rank2d21 = [&](int i, int j) { return (j % n_col) * n_row + i % n_row;};
     auto rank1d21 = [&](int k) { return k % n_ranks; };
-    auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
-    MatrixXd A;
-    A = MatrixXd::NullaryExpr(n*nb,n*nb, val);
-    MatrixXd L = A;
     vector<unique_ptr<MatrixXd>> blocs(nb*nb);
 
     auto bloc_2_rank = [&](int i, int j) {
@@ -948,30 +944,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     timer t1 = wctime();
     
     MPI_Status status;
-    if (test)  {
-        for (int ii=0; ii<nb; ii++) {
-            for (int jj=0; jj<nb; jj++) {
-                if (jj<=ii)  {
-                if (rank==0 && rank!=rank2d21(ii, jj)) {
-                    blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
-                    MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, rank2d21(ii, jj), 0, MPI_COMM_WORLD, &status);
-                    }
-
-                else if (rank==rank2d21(ii, jj) && rank != 0) {
-                    MPI_Send(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-                    }
-                }
-            }
-        }
-        
-        
-        for (int ii=0; ii<nb; ii++) {
-            for (int jj=0; jj<nb; jj++) {
-                L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
-            }
-        }
-        
-    }
+    
     if (rank==0) {
         cout<<"Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
     }
@@ -989,7 +962,35 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     printf("Rank %d Total Computation Time: %f\n", rank, trsm_us_t.load()+potrf_us_t.load()+gemm_us_t.load());
     */
 
+
+
     if (test)   {
+        auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
+        MatrixXd A;
+        A = MatrixXd::NullaryExpr(n*nb,n*nb, val);
+        MatrixXd L = A;
+        for (int ii=0; ii<nb; ii++) {
+            for (int jj=0; jj<nb; jj++) {
+                if (jj<=ii)  {
+                if (rank==0 && rank!=rank2d21(ii, jj)) {
+                    blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
+                    MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, rank2d21(ii, jj), 0, MPI_COMM_WORLD, &status);
+                    }
+
+                else if (rank==rank2d21(ii, jj) && rank != 0) {
+                    MPI_Send(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+                    }
+                }
+            }
+        }
+        
+        if (rank == 0)  {
+            for (int ii=0; ii<nb; ii++) {
+                for (int jj=0; jj<nb; jj++) {
+                    L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
+                }
+            }
+        }
         auto L1=L.triangularView<Lower>();
         LLT<MatrixXd> lltOfA(A);
         MatrixXd TrueL= lltOfA.matrixL();
