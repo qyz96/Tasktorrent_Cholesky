@@ -991,9 +991,6 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         A = MatrixXd::NullaryExpr(n*nb,n*nb, val);
         MatrixXd L = A;
 
-        if (rank==0) {
-            cout<<"1\n";
-        }
         for (int ii=0; ii<nb; ii++) {
             for (int jj=0; jj<nb; jj++) {
                 if (jj<=ii)  {
@@ -1008,9 +1005,6 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 }
             }
         }
-        if (rank==0) {
-            cout<<"2\n";
-        }
         
         if (rank == 0)  {
             for (int ii=0; ii<nb; ii++) {
@@ -1022,7 +1016,6 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             }
         }
         if (rank == 0) {
-            cout<<"3\n";
         auto L1=L.triangularView<Lower>();
         LLT<MatrixXd> lltOfA(A);
         MatrixXd TrueL= lltOfA.matrixL();
