@@ -65,6 +65,13 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         return r;
     };
 
+    auto block_2_thread = [&](int i, int j) {
+        int ii = i / n_row;
+        int jj = j / n_col;
+        int num_blocksit = nb / n_row;
+        return (ii + jj * num_blocksit) % n_threads;
+    };
+
     // Initialize the communicator structure
     Communicator comm(verb);
 
@@ -141,7 +148,8 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         })
         .set_mapping([&](int k) {
 
-            return (k % n_threads);
+            //return (k % n_threads);
+            return block_2_thread(k,k);
         })
         .set_binding([&](int k) {
             return false;
@@ -230,8 +238,8 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         .set_mapping([&](int2 ki) {
             int k=ki[0];
             int i=ki[1];
-
-            return ((k*n+i) % n_threads);
+            return block_2_thread(i,k);
+            //return ((k*n+i) % n_threads);
         })
         .set_binding([&](int2 ki) {
             int k=ki[0];
@@ -323,8 +331,8 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
-
-            return ((k*n*n+i+j*n)  % n_threads);
+            return block_2_thread(i,j);
+            //return ((k*n*n+i+j*n)  % n_threads);
         })
         .set_binding([&](int3 kij) {
             return false;
