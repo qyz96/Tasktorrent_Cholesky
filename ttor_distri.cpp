@@ -998,6 +998,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             }
         }
         if (rank == 0) {
+            cout<<"3\n";
         auto L1=L.triangularView<Lower>();
         LLT<MatrixXd> lltOfA(A);
         MatrixXd TrueL= lltOfA.matrixL();
