@@ -958,22 +958,22 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     timer t1 = wctime();
     
     MPI_Status status;
-    vector<unique_ptr<MatrixXd>> blocs(nb*nb);
+    vector<unique_ptr<MatrixXd>> blocs2(nb*nb);
 
     if (test)   {
         
         for (int ii=0; ii<nb; ii++) {
             for (int jj=0; jj<nb; jj++) {
                 if (rank==0) {
-                    blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
+                    blocs2[ii+jj*nb]=make_unique<MatrixXd>(n,n);
                 }
                 if (jj<=ii)  {
                 if (rank==0 && rank!=bloc_2_rank(ii,jj)) {
-                    MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, rank2d21(ii,jj), 0, MPI_COMM_WORLD, &status);
+                    MPI_Recv(blocs2[ii+jj*nb]->data(), n*n, MPI_DOUBLE, rank2d21(ii,jj), 0, MPI_COMM_WORLD, &status);
                     }
 
                 else if (rank==0) {
-                    *blocs[ii+jj*nb]=*block(ii,jj);
+                    *blocs2[ii+jj*nb]=*block(ii,jj);
                 }
 
                 else if (rank==bloc_2_rank(ii,jj) &&  rank != 0) {
@@ -986,7 +986,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         if (rank==0)  {
             for (int ii=0; ii<nb; ii++) {
                 for (int jj=0; jj<nb; jj++) {
-                    L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
+                    L.block(ii*n,jj*n,n,n)=*blocs2[ii+jj*nb];
                 }
             }
         }
