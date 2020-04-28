@@ -186,7 +186,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         .set_fulfill([&](int2 ki) {
             int k=ki[0];
             int i=ki[1];
-            vector<vector<int2>> fulfill(n_ranks);
+            map<int,vector<int2>> fulfill;
             for (int j=k+1; j<nb; j++) {
                 if (j<i) {
                     fulfill[bloc_2_rank(i,j)].push_back({i,j});
@@ -195,10 +195,10 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                     fulfill[bloc_2_rank(j,i)].push_back({j,i});
                 }
                 
-            }
-            for (int r=0; r<n_ranks; r++)   // Looping through all outgoing dependency edges
+            }           
+            for (auto &rf: fulfill)   // Looping through all outgoing dependency edges
             {
-
+                int r = rf.first;
                 if (r == rank) {
                     for (auto& ij : fulfill[r]) {
                         gemm.fulfill_promise({k,ij[0],ij[1]});
