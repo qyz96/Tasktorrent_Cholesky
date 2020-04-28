@@ -493,6 +493,20 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     };
 
 
+
+    for (int ii=0; ii<nb; ii++) {
+        for (int jj=0; jj<nb; jj++) {
+            blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
+            int loc = rank2d21(ii,jj);
+            if (rank == loc)   {
+                *blocs[ii+jj*nb]=L.block(ii*n,jj*n,n,n);
+            }
+            else {
+                *blocs[ii+jj*nb] = MatrixXd::Zero(n,n);
+            }
+        }
+    }
+/*
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
             auto val_loc = [&](int i, int j) { return val(ii*n+i,jj*n+j); };
@@ -511,7 +525,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             }
         }
     }
-
+*/
 
 
     // Map tasks to rank
