@@ -976,7 +976,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     printf("Gemm time: %e\n", gemm_us_t.load() * 1e-6);
     printf("Rank %d Total Computation Time: %e\n", rank, potrf_us_t.load() * 1e-6+trsm_us_t.load() * 1e-6+gemm_us_t.load() * 1e-6);
     */
-    printf("Rank %d number of GEMMs: %d\n", rank, gemm_us_t.load());
+    //printf("Rank %d number of GEMMs: %d\n", rank, gemm_us_t.load());
     /*
     printf("Potrf Time: %f\n", potrf_us_t.load());
     printf("Trsm Time: %f\n", trsm_us_t.load());
