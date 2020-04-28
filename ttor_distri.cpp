@@ -873,10 +873,11 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             int k=kij[0]; // Step (gemm's pivot)
             int i=kij[1]; // Row
             int j=kij[2]; // Col
+            assert(rank2d21(i,j) == rank);
             assert(j <= i);
             //printf("Running ACCU (%d, %d, %d) on rank %d, %d\n", k, i, j, rank % n_row, rank / n_row);
             //assert(k < j);
-            std::unique_ptr<Eigen::MatrixXd> Atmp;
+            //std::unique_ptr<Eigen::MatrixXd> Atmp;
             {
                 lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
                 timer t_ = wctime();
