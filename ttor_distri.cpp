@@ -643,7 +643,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         int k=ki[0];
         int i=ki[1];
         timer t1 = wctime();
-        cblas_dtrsm(CblasColMajor, CblasRight, CblasLower, CblasTrans, CblasNonUnit, n, n, 1.0, blocs[k+k*nb]->data(),n, blocs[i+k*nb]->data(), n);
+        cblas_dtrsm(CblasColMajor, CblasRight, CblasLower, CblasTrans, CblasNonUnit, n, n, 1.0, block(k,k)->data(),n, block(i,k)->data(), n);
         timer t2 = wctime();
         trsm_us_t += 1e6 * elapsed(t1, t2);
         //trsm_us_t += 1;
@@ -675,7 +675,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 }
                 else {
                     //cout<<"Sending data from "<<rank<<" to "<<r<<"\n";
-                    auto Lijv = view<double>(blocs[i+k*nb]->data(), n*n);
+                    auto Lijv = view<double>(block(i,k)->data(), n*n);
                     auto ijsv = view<int2>(fulfill[r].data(), fulfill[r].size());
                     am_gemm->send(r, Lijv, i, k, ijsv);
 
@@ -753,10 +753,10 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             int j=kij[2]; 
             timer t1 = wctime();           
             if (i==j) { 
-                cblas_dsyrk(CblasColMajor, CblasLower, CblasNoTrans, n, n, -1.0, blocs[i+k*nb]->data(), n, 1.0, blocs[i+j*nb]->data(), n);
+                cblas_dsyrk(CblasColMajor, CblasLower, CblasNoTrans, n, n, -1.0, block(i,k)->data(), n, 1.0, block_ac(i,j)->data(), n);
             }
             else {
-                cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, n, n, -1.0,blocs[i+k*nb]->data(), n, blocs[j+k*nb]->data(), n, 1.0, blocs[i+j*nb]->data(), n);
+                cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, n, n, -1.0, block(i,k)->data(), n, block(j,k)->data(), n, 1.0, block_ac(i,j)->data(), n);
             }
             timer t2 = wctime();
             //printf("Running GEMM (%d, %d, %d) on rank %d, %d, %d\n", i, j, k, rank_3d[0], rank_3d[1], rank_3d[2]);
@@ -777,7 +777,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 int dest = (i==j) ? rank1d21(i) : rank2d21(i, j);
                 if (dest == rank) {
                     //printf("Gemm (%d, %d, %d) fulfilling ACCUMU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[2], i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
-                    auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
+                    auto Lij = view<double>(block_ac(i,j)->data(), n*n);
                     std::unique_ptr<MatrixXd> Atmp;
                     Atmp = make_unique<MatrixXd>(n, n);
                     *Atmp = MatrixXd::Zero(n,n);
@@ -787,7 +787,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
 
                 else {
                     int kk = rank_3d[2];
-                    auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
+                    auto Lij = view<double>(block_ac(i,j)->data(), n*n);
                     //printf("Gemm (%d, %d, %d) Sending ACCUMU (%d, %d, %d) to rank %d, %d\n", k, i, j, rank_3d[2], i, j, dest % n_row, dest / n_row);
                     am_accu->send(dest, Lij, i, j, kk);
                 }
