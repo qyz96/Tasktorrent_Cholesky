@@ -484,11 +484,12 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     auto rank3d21 = [&](int i, int j, int k) { return ((j % q) * q + k % q) + (i % q) * q * q;};
     auto rank2d21 = [&](int i, int j) { return (j % n_col) * n_row + i % n_row;};
     auto rank1d21 = [&](int k) { return k % n_ranks; };
-    auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
-    MatrixXd A;
-    A = MatrixXd::NullaryExpr(n*nb,n*nb, val);
-    MatrixXd L = A;
-    vector<unique_ptr<MatrixXd>> blocs(nb*nb);
+    int nx = (nb+n_row-1)/n_row;
+    int ny = (nb+n_col-1)/n_col;
+    int nx3d = (nb + q - 1) / q;
+    int ny3d = (nb + q - 1) / q;
+    vector<unique_ptr<MatrixXd>> blocs(nx*ny);
+    vector<unique_ptr<MatrixXd>> blocs_ac(nx3d*ny3d);
 
     auto bloc_2_rank = [&](int i, int j) {
         int r = (j % n_col) * n_row + (i % n_row);
@@ -499,16 +500,22 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
             blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
-            int loc = (ii==jj) ? rank1d21(ii) : rank2d21(ii,jj);
+            int loc = rank2d21(ii,jj);
+            auto valij = [&](int i, int j) { return 1/(float)(((ii*nb)+i-(jj*nb)-j)*((ii*nb)+i-(jj*nb)-j)+1); };
             if (rank == loc)   {
-                *blocs[ii+jj*nb]=L.block(ii*n,jj*n,n,n);
-            }
-            else {
-                *blocs[ii+jj*nb] = MatrixXd::Zero(n,n);
+                *blocs[(ii/n_row)+(jj/n_col)*ny]=MatrixXd::NullaryExpr(n, n, valij);
             }
         }
     }
 
+    for (int ii=0; ii<ny3d; ii++) {
+        for (int jj=0; jj<nx3d; jj++) {
+            *blocs_ac[ii+jj*ny3d]=MatrixXd::Zero(n,n);
+        }
+    }
+
+    auto block = [&](int i, int j) {return blocs[(i/n_row)+(j/n_col)*ny];}
+    auto block_ac = [&](int i, int j) {return blocs_ac[(i/q)+(j/q)*ny3d];}
 
 
     // Map tasks to rank
@@ -537,7 +544,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     // Create active message
     auto am_trsm = comm.make_active_msg( 
             [&](view<double> &Lkk, int& k, view<int>& is) {
-                *blocs[k+k*nb] = Map<MatrixXd>(Lkk.data(), n, n);
+                *block(k,k) = Map<MatrixXd>(Lkk.data(), n, n);
                 for(auto& i: is) {
                     trsm.fulfill_promise({k,i});
                 }
@@ -546,7 +553,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         // Sends a panel bloc and trigger multiple gemms
     auto am_gemm = comm.make_active_msg(
         [&](view<double> &Lij, int& i, int& k, view<int2>& ijs) {
-            *blocs[i+k*nb] = Map<MatrixXd>(Lij.data(), n, n);
+            *block(i,k) = Map<MatrixXd>(Lij.data(), n, n);
             for(auto& ij: ijs) {
                 gemm.fulfill_promise({k,ij[0],ij[1]});
             }
@@ -555,7 +562,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     // Define the task flow
     potrf.set_task([&](int k) {
           timer t1 = wctime();
-          LAPACKE_dpotrf(LAPACK_COL_MAJOR, 'L', n, blocs[k+k*nb]->data(), n);
+          LAPACKE_dpotrf(LAPACK_COL_MAJOR, 'L', n, block(k,k)->data(), n);
           timer t2 = wctime();
           potrf_us_t += 1e6 * elapsed(t1, t2);
           //potrf_us_t += 1;
@@ -578,7 +585,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 }
                 else {
                     //cout<<"Sending data from "<<rank<<" to "<<r<<"\n";
-                    auto Ljjv = view<double>(blocs[k+k*nb]->data(), n*n);
+                    auto Ljjv = view<double>(block(k,k)->data(), n*n);
                     auto isv = view<int>(fulfill[r].data(), fulfill[r].size());
                     am_trsm->send(r, Ljjv, k, isv);
 
