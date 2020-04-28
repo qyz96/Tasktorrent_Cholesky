@@ -509,10 +509,10 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
 
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
-            blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
             int loc = rank2d21(ii,jj);
             auto valij = [&](int i, int j) { return 1/(float)(((ii*nb)+i-(jj*nb)-j)*((ii*nb)+i-(jj*nb)-j)+1); };
             if (rank == loc)   {
+                blocs[(ii/n_row)+(jj/n_col)*ny]=new MatrixXd(n,n);
                 *blocs[(ii/n_row)+(jj/n_col)*ny]=MatrixXd::NullaryExpr(n, n, valij);
             }
         }
@@ -520,6 +520,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
 
     for (int ii=0; ii<ny3d; ii++) {
         for (int jj=0; jj<nx3d; jj++) {
+            blocs_ac[ii+jj*ny3d]=new MatrixXd(n,n);
             *blocs_ac[ii+jj*ny3d]=MatrixXd::Zero(n,n);
         }
     }
