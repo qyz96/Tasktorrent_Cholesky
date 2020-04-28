@@ -397,7 +397,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         }
     }
     if (rank==0) {
-        cout<<"Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
+        cout<<"2D, Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
     }
     /*
     printf("Potrf time: %e\n", potrf_us_t.load() * 1e-6);
@@ -974,7 +974,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     MPI_Status status;
     
     if (rank==0) {
-        cout<<"Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
+        cout<<"3D, Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
     }
     /*
     printf("Potrf time: %e\n", potrf_us_t.load() * 1e-6);
