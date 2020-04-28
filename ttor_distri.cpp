@@ -652,7 +652,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         .set_fulfill([&](int2 ki) {
             int k=ki[0];
             int i=ki[1];
-            map<int,vector<int2>> fulfill(n_ranks);
+            map<int,vector<int2>> fulfill;
             for (int j=k+1; j<nb; j++) {
                 if (j<i) {
                     fulfill[rank3d21(i,j,k)].push_back({i,j});
