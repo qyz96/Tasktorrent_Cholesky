@@ -501,6 +501,13 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         return r;
     };
 
+    auto block_2_thread = [&](int i, int j) {
+        int ii = i / n_row;
+        int jj = j / n_col;
+        int num_blocksit = nb / n_row;
+        return (ii + jj * num_blocksit) % n_threads;
+    };
+
 
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
@@ -615,7 +622,8 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         })
         .set_mapping([&](int k) {
 
-            return (k % n_threads);
+            //return (k % n_threads);
+            return block_2_thread(k,k);
         })
         .set_binding([&](int k) {
             return false;
@@ -732,7 +740,8 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             int k=ki[0];
             int i=ki[1];
 
-            return ((k*n+i) % n_threads);
+            //return ((k*n+i) % n_threads);
+            return block_2_thread(i,k);
         })
         .set_binding([&](int2 ki) {
             int k=ki[0];
@@ -772,7 +781,10 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         std::unique_ptr<MatrixXd> Atmp;
         Atmp = make_unique<MatrixXd>(n, n);
         *Atmp =  Map<MatrixXd>(Lijk.data(), n, n);
-        gemm_results[i+j*nb].to_accumulate[from] = move(Atmp);
+        {
+            lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
+            gemm_results[i+j*nb].to_accumulate[from] = move(Atmp);
+        }
         accu.fulfill_promise({from, i, j});
     });
 
@@ -812,7 +824,10 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                     std::unique_ptr<MatrixXd> Atmp;
                     Atmp = make_unique<MatrixXd>(n, n);
                     *Atmp = MatrixXd::Zero(n,n);
-                    gemm_results[i+j*nb].to_accumulate[rank_3d[2]] = move(Atmp);
+                    {
+                        lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
+                        gemm_results[i+j*nb].to_accumulate[rank_3d[2]] = move(Atmp);
+                    }
                     accu.fulfill_promise({rank_3d[2], i, j});
                 }
 
@@ -844,7 +859,8 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             int i=kij[1];
             int j=kij[2];
 
-            return ((k*n*n+i+j*n)  % n_threads);
+            //return ((k*n*n+i+j*n)  % n_threads);
+            return block_2_thread(i,j);
         })
         .set_binding([&](int3 kij) {
             return false;
@@ -929,7 +945,8 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
-            return ((i+j*n)  % n_threads);
+            return block_2_thread(i,j);
+            //return ((i+j*n)  % n_threads);
             //return ((k*n*n+i+j*n)  % n_threads);// IMPORTANT. Every (i,j) should map to a given fixed thread
         })
         .set_priority([&](int3 kij) {
