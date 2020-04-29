@@ -29,7 +29,7 @@ typedef array<int, 2> int2;
 typedef array<int, 3> int3;
 
 
-void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test, int LOG)
+void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test, int LOG, int tm)
 {
     const int rank = comm_rank();
     const int n_ranks = comm_size();
@@ -151,9 +151,12 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             return 1;
         })
         .set_mapping([&](int k) {
-
-            //return (k % n_threads);
-            return block_2_thread(k,k);
+            if (tm) {
+                return block_2_thread(k,k);
+            }
+            else {
+                return (k % n_threads);
+            }
         })
         .set_binding([&](int k) {
             return false;
@@ -242,8 +245,12 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         .set_mapping([&](int2 ki) {
             int k=ki[0];
             int i=ki[1];
-            return block_2_thread(i,k);
-            //return ((k*n+i) % n_threads);
+            if (tm) {
+                return block_2_thread(i,k);
+            }
+            else {
+                return ((k*n+i) % n_threads);
+            }
         })
         .set_binding([&](int2 ki) {
             int k=ki[0];
@@ -335,8 +342,13 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
-            return block_2_thread(i,j);
-            //return ((k*n*n+i+j*n)  % n_threads);
+
+            if (tm) {
+                return block_2_thread(i,j);
+            }
+            else {
+                return ((k*n*n+i+j*n)  % n_threads);
+            }
         })
         .set_binding([&](int3 kij) {
             return false;
@@ -1107,6 +1119,7 @@ int main(int argc, char **argv)
     int test=0;
     int log=0;
     int al=0;
+    int tm=0;
 
 
     if (argc >= 2)
@@ -1146,9 +1159,13 @@ int main(int argc, char **argv)
         al = atoi(argv[10]);
     }
 
+    if (argc >= 12) {
+        tm = atoi(argv[11]);
+    }
+
 
     if (al) {
-    cholesky2d(n_threads, verb, n, nb, n_col, n_row, priority, test, log);
+    cholesky2d(n_threads, verb, n, nb, n_col, n_row, priority, test, log, tm);
     }
     else {
     cholesky3d(n_threads, verb, n, nb, n_col, n_row, priority, test, log);  
