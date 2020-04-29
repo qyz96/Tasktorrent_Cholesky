@@ -431,6 +431,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
             }
         }
+        cout<<"test1\n";
         auto L1=L.triangularView<Lower>();
         LLT<MatrixXd> lltOfA(A);
         MatrixXd TrueL= lltOfA.matrixL();
