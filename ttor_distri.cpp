@@ -425,6 +425,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 }
             }
         }
+        if (rank==0)  {
         for (int ii=0; ii<nb; ii++) {
             for (int jj=0; jj<nb; jj++) {
                 L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
@@ -440,7 +441,6 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         L1.solveInPlace(b);
         L1.transpose().solveInPlace(b);
         double error = (b - x).norm() / x.norm();
-        if (rank == 0) {
             cout << "Error solve: " << error << endl;
         }
     }
