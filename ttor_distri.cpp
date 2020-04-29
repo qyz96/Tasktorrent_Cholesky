@@ -46,26 +46,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
     
     vector<unique_ptr<MatrixXd>> blocs(nb*nb);
-    for (int ii=0; ii<nb; ii++) {
-        for (int jj=0; jj<nb; jj++) {
-            auto val_loc = [&](int i, int j) { return val(ii*n+i,jj*n+j); };
-            if(rank2d21(ii,jj) == rank) {
-                blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
-                *blocs[ii+jj*nb]=MatrixXd::NullaryExpr(n, n, val_loc);
-            } 
-
-            else if (((ii % q) == rank_3d[0]) && ((jj % q) == rank_3d[1])) {
-                blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
-                *blocs[ii+jj*nb]=MatrixXd::Zero(n, n);
-            }
-            
-            else {
-                blocs[ii+jj*nb]=make_unique<MatrixXd>();
-                //blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
-                //*blocs[ii+jj*nb]=MatrixXd::Zero(n, n);
-            }
-        }
-    }
+    
 
 
     // Map tasks to rank
@@ -74,6 +55,19 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         assert(r >= 0 && r < n_ranks);
         return r;
     };
+
+    for (int ii=0; ii<nb; ii++) {
+        for (int jj=0; jj<nb; jj++) {
+            auto val_loc = [&](int i, int j) { return val(ii*n+i,jj*n+j); };
+            if(bloc_2_rank(ii,jj) == rank) {
+                blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
+                *blocs[ii+jj*nb]=MatrixXd::NullaryExpr(n, n, val_loc);
+            }       
+            else {
+                blocs[ii+jj*nb]=make_unique<MatrixXd>();
+            }
+        }
+    }
 
     auto block_2_thread = [&](int i, int j) {
         int ii = i / n_row;
