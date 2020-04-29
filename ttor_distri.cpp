@@ -897,7 +897,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 *blocs[i+j*nb] += (*gemm_results[i+j*nb].to_accumulate[k]);
                 timer t__ = wctime();
                 accu_us_t += 1e6 * elapsed(t_, t__);
-                //gemm_results[i+j*nb].to_accumulate.erase(k);
+                gemm_results[i+j*nb].to_accumulate.erase(k);
             }
             //cout<<(*blocs[i+j*nb])<<"\n";
             //cout<<(*Atmp)<<"\n";
@@ -929,8 +929,8 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
-
-            return ((k*n*n+i+j*n)  % n_threads);// IMPORTANT. Every (i,j) should map to a given fixed thread
+            return ((i+j*n)  % n_threads);
+            //return ((k*n*n+i+j*n)  % n_threads);// IMPORTANT. Every (i,j) should map to a given fixed thread
         })
         .set_priority([&](int3 kij) {
             int k=kij[0];
