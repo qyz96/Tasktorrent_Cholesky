@@ -415,6 +415,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             for (int jj=0; jj<nb; jj++) {
                 if (jj<=ii)  {
                 if (rank==0 && rank!=bloc_2_rank(ii,jj)) {
+                    blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
                     MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, bloc_2_rank(ii,jj), 0, MPI_COMM_WORLD, &status);
                     }
 
