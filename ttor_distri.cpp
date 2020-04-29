@@ -44,18 +44,28 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
 
 
     auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
-    MatrixXd A;
-    A = MatrixXd::NullaryExpr(n*nb,n*nb, val);
-    MatrixXd L = A;
+    
     vector<unique_ptr<MatrixXd>> blocs(nb*nb);
     for (int ii=0; ii<nb; ii++) {
         for (int jj=0; jj<nb; jj++) {
-            blocs[ii+jj*nb]=make_unique<MatrixXd>(n,n);
+            auto val_loc = [&](int i, int j) { return val(ii*n+i,jj*n+j); };
+            if(rank2d21(ii,jj) == rank) {
+                blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
+                *blocs[ii+jj*nb]=MatrixXd::NullaryExpr(n, n, val_loc);
+            } 
 
-            *blocs[ii+jj*nb]=L.block(ii*n,jj*n,n,n);
+            else if (((ii % q) == rank_3d[0]) && ((jj % q) == rank_3d[1])) {
+                blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
+                *blocs[ii+jj*nb]=MatrixXd::Zero(n, n);
+            }
+            
+            else {
+                blocs[ii+jj*nb]=make_unique<MatrixXd>();
+                //blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
+                //*blocs[ii+jj*nb]=MatrixXd::Zero(n, n);
+            }
         }
     }
-
 
 
     // Map tasks to rank
@@ -384,27 +394,8 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     timer t1 = wctime();
     
     MPI_Status status;
-    if (test)   {
-        for (int ii=0; ii<nb; ii++) {
-            for (int jj=0; jj<nb; jj++) {
-                if (jj<=ii)  {
-                if (rank==0 && rank!=bloc_2_rank(ii,jj)) {
-                    MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, bloc_2_rank(ii,jj), 0, MPI_COMM_WORLD, &status);
-                    }
-
-                else if (rank==bloc_2_rank(ii,jj) &&  rank != 0) {
-                    MPI_Send(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-                    }
-                }
-            }
-        }
-        
-    }
-    for (int ii=0; ii<nb; ii++) {
-        for (int jj=0; jj<nb; jj++) {
-            L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
-        }
-    }
+    
+    
     if (rank==0) {
         cout<<"2D, Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
     }
@@ -423,6 +414,27 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     */
 
     if (test)   {
+        MatrixXd A;
+        A = MatrixXd::NullaryExpr(n*nb,n*nb, val);
+        MatrixXd L = A;
+        for (int ii=0; ii<nb; ii++) {
+            for (int jj=0; jj<nb; jj++) {
+                if (jj<=ii)  {
+                if (rank==0 && rank!=bloc_2_rank(ii,jj)) {
+                    MPI_Recv(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, bloc_2_rank(ii,jj), 0, MPI_COMM_WORLD, &status);
+                    }
+
+                else if (rank==bloc_2_rank(ii,jj) &&  rank != 0) {
+                    MPI_Send(blocs[ii+jj*nb]->data(), n*n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+                    }
+                }
+            }
+        }
+        for (int ii=0; ii<nb; ii++) {
+            for (int jj=0; jj<nb; jj++) {
+                L.block(ii*n,jj*n,n,n)=*blocs[ii+jj*nb];
+            }
+        }
         auto L1=L.triangularView<Lower>();
         LLT<MatrixXd> lltOfA(A);
         MatrixXd TrueL= lltOfA.matrixL();
@@ -437,7 +449,6 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             cout << "Error solve: " << error << endl;
         }
     }
-
     if (LOG)  {
         std::ofstream logfile;
         string filename = "ttor_2Dcholesky_Priority_"+to_string(n)+"_"+to_string(nb)+"_"+ to_string(n_threads)+"_"+ to_string(n_ranks)+"_"+ to_string(priority)+".log."+to_string(rank);
