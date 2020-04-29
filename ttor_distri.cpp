@@ -43,7 +43,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     int n_tasks_per_rank = 2;
 
 
-    auto val = [&](int i, int j) { return 1/(float)((i-j)*(i-j)+1); };
+    auto val = [&](int i, int j) { return 1/(double)((i-j)*(i-j)+1); };
     
     vector<unique_ptr<MatrixXd>> blocs(nb*nb);
     
