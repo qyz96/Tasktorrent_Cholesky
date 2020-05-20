@@ -64,7 +64,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 *blocs[ii+jj*nb]=MatrixXd::NullaryExpr(n, n, val_loc);
             }       
             else {
-                blocs[ii+jj*nb]=make_unique<MatrixXd>();
+                blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
             }
         }
     }
@@ -95,12 +95,25 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     
 
     // Create active message
+
+    /*
     auto am_trsm = comm.make_active_msg( 
             [&](view<double> &Lkk, int& k, view<int>& is) {
                 *blocs[k+k*nb] = Map<MatrixXd>(Lkk.data(), n, n);
                 for(auto& i: is) {
                     trsm.fulfill_promise({k,i});
                 }
+            });
+
+    */
+    auto am_trsm = comm.make_large_active_msg( 
+            [&](int& k, view<int>& is) {
+                for(auto& i: is) {
+                    trsm.fulfill_promise({k,i});
+                }
+            },
+            [&](int& k, view<int>& is){
+                return blocs[k+k*nb]->data();
             });
 
         // Sends a panel bloc and trigger multiple gemms
@@ -141,7 +154,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                     //cout<<"Sending data from "<<rank<<" to "<<r<<"\n";
                     auto Ljjv = view<double>(blocs[k+k*nb]->data(), n*n);
                     auto isv = view<int>(fulfill[r].data(), fulfill[r].size());
-                    am_trsm->send(r, Ljjv, k, isv);
+                    am_trsm->send_large(r, Ljjv, k, isv);
 
                 }
 
