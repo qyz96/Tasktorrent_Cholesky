@@ -856,7 +856,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             gemm_results[i+j*nb].to_accumulate[from] = move(Atmp);
         }
         accu.fulfill_promise({from, i, j});},
-        [&])(int& i, int& j, int& from){
+        [&](int& i, int& j, int& from){
             return gemm_results[i+j*nb].to_accumulate[from]->data();
         };
 
