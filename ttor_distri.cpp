@@ -115,12 +115,24 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             });
 
         // Sends a panel bloc and trigger multiple gemms
+    /*
     auto am_gemm = comm.make_active_msg(
         [&](view<double> &Lij, int& i, int& k, view<int2>& ijs) {
             *blocs[i+k*nb] = Map<MatrixXd>(Lij.data(), n, n);
             for(auto& ij: ijs) {
                 gemm.fulfill_promise({k,ij[0],ij[1]});
             }
+        });
+
+    */
+    auto am_gemm = comm.make_large_active_msg(
+        [&](int& i, int& k, view<int2>& ijs) {
+            for(auto& ij: ijs) {
+                gemm.fulfill_promise({k,ij[0],ij[1]});
+            }
+        },
+        [&](int& i, int& k, view<int2>& ijs) {
+            return blocs[i+k*nb]->data();
         });
 
     // Define the task flow
@@ -236,7 +248,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                     //cout<<"Sending data from "<<rank<<" to "<<r<<"\n";
                     auto Lijv = view<double>(blocs[i+k*nb]->data(), n*n);
                     auto ijsv = view<int2>(fulfill[r].data(), fulfill[r].size());
-                    am_gemm->send(r, Lijv, i, k, ijsv);
+                    am_gemm->send_large(r, Lijv, i, k, ijsv);
 
                 }
                 
