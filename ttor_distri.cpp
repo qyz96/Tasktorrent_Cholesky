@@ -599,21 +599,35 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     
 
     // Create active message
-    auto am_trsm = comm.make_active_msg( 
-            [&](view<double> &Lkk, int& k, view<int>& is) {
-                *blocs[k+k*nb] = Map<MatrixXd>(Lkk.data(), n, n);
+    auto am_trsm = comm.make_large_active_msg( 
+            [&](int& k, view<int>& is) {
                 for(auto& i: is) {
                     trsm.fulfill_promise({k,i});
                 }
+            },
+            [&](int& k, view<int>& is){
+                return blocs[k+k*nb]->data();
             });
 
         // Sends a panel bloc and trigger multiple gemms
+    /*
     auto am_gemm = comm.make_active_msg(
         [&](view<double> &Lij, int& i, int& k, view<int2>& ijs) {
             *blocs[i+k*nb] = Map<MatrixXd>(Lij.data(), n, n);
             for(auto& ij: ijs) {
                 gemm.fulfill_promise({k,ij[0],ij[1]});
             }
+        });
+
+    */
+    auto am_gemm = comm.make_large_active_msg(
+        [&](int& i, int& k, view<int2>& ijs) {
+            for(auto& ij: ijs) {
+                gemm.fulfill_promise({k,ij[0],ij[1]});
+            }
+        },
+        [&](int& i, int& k, view<int2>& ijs) {
+            return blocs[i+k*nb]->data();
         });
 
     // Define the task flow
@@ -645,7 +659,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                     //cout<<"Sending data from "<<rank<<" to "<<r<<"\n";
                     auto Ljjv = view<double>(blocs[k+k*nb]->data(), n*n);
                     auto isv = view<int>(fulfill[r].data(), fulfill[r].size());
-                    am_trsm->send(r, Ljjv, k, isv);
+                    am_trsm->send_large(r, Ljjv, k, isv);
 
                 }
 
@@ -739,7 +753,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                     //cout<<"Sending data from "<<rank<<" to "<<r<<"\n";
                     auto Lijv = view<double>(blocs[i+k*nb]->data(), n*n);
                     auto ijsv = view<int2>(fulfill[r].data(), fulfill[r].size());
-                    am_gemm->send(r, Lijv, i, k, ijsv);
+                    am_gemm->send_large(r, Lijv, i, k, ijsv);
 
                 }
                 
