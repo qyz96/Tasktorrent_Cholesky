@@ -892,14 +892,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                 int dest = rank2d21(i, j);
                 if (dest == rank) {
                     //printf("Gemm (%d, %d, %d) fulfilling ACCUMU (%d, %d, %d) on rank %d, %d, %d\n", k, i, j, rank_3d[2], i, j, rank_3d[0], rank_3d[1], rank_3d[2]);
-                    auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
-                    std::unique_ptr<MatrixXd> Atmp;
-                    Atmp = make_unique<MatrixXd>(n, n);
-                    *Atmp = MatrixXd::Zero(n,n);
-                    {
-                        lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
-                        gemm_results[i+j*nb].to_accumulate[rank_3d[2]] = move(Atmp);
-                    }
+
                     accu.fulfill_promise({rank_3d[2], i, j});
                 }
 
