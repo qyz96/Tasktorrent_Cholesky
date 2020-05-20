@@ -835,7 +835,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             int i=ki[1];
             return "TRSM" + to_string(k) + "_" + to_string(i) + "_" +to_string(rank);
         });
-
+    /*
     auto am_accu = comm.make_active_msg([&](view<double>& Lijk, int& i, int& j, int& from) {
         std::unique_ptr<MatrixXd> Atmp;
         Atmp = make_unique<MatrixXd>(n, n);
@@ -846,6 +846,20 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         }
         accu.fulfill_promise({from, i, j});
     });
+    */
+
+    auto am_accu = comm.make_large_active_msg([&](int& i, int& j, int& from) {
+        std::unique_ptr<MatrixXd> Atmp;
+        Atmp = make_unique<MatrixXd>(n, n);
+        {
+            lock_guard<mutex> lock(gemm_results[i+j*nb].mtx);
+            gemm_results[i+j*nb].to_accumulate[from] = move(Atmp);
+        }
+        accu.fulfill_promise({from, i, j});},
+        [&])(int& i, int& j, int& from){
+            return gemm_results[i+j*nb].to_accumulate[from]->data();
+        };
+
 
 
 
@@ -894,7 +908,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
                     int kk = rank_3d[2];
                     auto Lij = view<double>(blocs[i+j*nb]->data(), n*n);
                     //printf("Gemm (%d, %d, %d) Sending ACCUMU (%d, %d, %d) to rank %d, %d\n", k, i, j, rank_3d[2], i, j, dest % n_row, dest / n_row);
-                    am_accu->send(dest, Lij, i, j, kk);
+                    am_accu->send_large(dest, Lij, i, j, kk);
                 }
             }
             
