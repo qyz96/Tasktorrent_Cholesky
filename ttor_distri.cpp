@@ -416,7 +416,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     
     
     if (rank==0) {
-        cout<<"2D, Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
+        cout<<"2D, Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", n_threads "<<n_threads<<", tm "<<tm<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
     }
     /*
     printf("Potrf time: %e\n", potrf_us_t.load() * 1e-6);
@@ -481,7 +481,7 @@ void cholesky2d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
 
 }
 //Test Test2
-void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test, int LOG)
+void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, int priority, int test, int LOG, int tm)
 {
     const int rank = comm_rank();
     const int n_ranks = comm_size();
@@ -654,9 +654,10 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             }
         })
         .set_mapping([&](int k) {
-
-            //return (k % n_threads);
-            return block_2_thread(k,k);
+            if (tm) {
+                return block_2_thread(k,k);
+            }
+            return (k % n_threads);
         })
         .set_binding([&](int k) {
             return false;
@@ -772,9 +773,10 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
         .set_mapping([&](int2 ki) {
             int k=ki[0];
             int i=ki[1];
-
-            //return ((k*n+i) % n_threads);
-            return block_2_thread(i,k);
+            if (tm) {
+                return block_2_thread(i,k);
+            }
+            return ((k*n+i) % n_threads);
         })
         .set_binding([&](int2 ki) {
             int k=ki[0];
@@ -892,8 +894,11 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             int i=kij[1];
             int j=kij[2];
 
-            //return ((k*n*n+i+j*n)  % n_threads);
-            return block_2_thread(i,j);
+            if (tm) {
+                return block_2_thread(i,j);
+            }
+            return ((k*n*n+i+j*n)  % n_threads);
+            //return block_2_thread(i,j);
         })
         .set_binding([&](int3 kij) {
             return false;
@@ -978,8 +983,11 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             int k=kij[0];
             int i=kij[1];
             int j=kij[2];
-            return block_2_thread(i,j);
-            //return ((i+j*n)  % n_threads);
+            if (tm) {
+                return block_2_thread(i,j);
+            }
+            //return block_2_thread(i,j);
+            return ((i+j*n)  % n_threads);
             //return ((k*n*n+i+j*n)  % n_threads);// IMPORTANT. Every (i,j) should map to a given fixed thread
         })
         .set_priority([&](int3 kij) {
@@ -1035,7 +1043,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
     MPI_Status status;
     
     if (rank==0) {
-        cout<<"3D, Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
+        cout<<"3D, Number of ranks "<<n_ranks<<", n "<<n<<", nb "<<nb<<", n_threads "<<n_threads<<", tm "<<tm<<", Priority "<<priority<<", Elapsed time: "<<elapsed(t0,t1)<<endl;
     }
     /*
     printf("Potrf time: %e\n", potrf_us_t.load() * 1e-6);
@@ -1181,7 +1189,7 @@ int main(int argc, char **argv)
     cholesky2d(n_threads, verb, n, nb, n_col, n_row, priority, test, log, tm);
     }
     else {
-    cholesky3d(n_threads, verb, n, nb, n_col, n_row, priority, test, log);  
+    cholesky3d(n_threads, verb, n, nb, n_col, n_row, priority, test, log, tm);  
     }
 
     MPI_Finalize();
