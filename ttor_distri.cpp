@@ -522,7 +522,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
 
     
     struct acc_data {
-        vector<std::unique_ptr<MatrixXd>> to_accumulate(q); // to_accumulate[k] holds matrix result of gemm(k,i,j)
+        vector<std::unique_ptr<MatrixXd>> to_accumulate; // to_accumulate[k] holds matrix result of gemm(k,i,j)
     };
 
 
@@ -557,6 +557,7 @@ void cholesky3d(int n_threads, int verb, int n, int nb, int n_col, int n_row, in
             if(rank2d21(ii,jj) == rank) {
                 blocs[ii+jj*nb]=make_unique<MatrixXd>(n, n);
                 *blocs[ii+jj*nb]=MatrixXd::NullaryExpr(n, n, val_loc);
+                gemm_results[ii+jj*nb].to_accumulate= vector<std::unique_ptr<MatrixXd>>(q);
                 for (int ll=0; ll<q; ll++) {
                     gemm_results[ii+jj*nb].to_accumulate[ll]=make_unique<MatrixXd>(n, n);
                 }
