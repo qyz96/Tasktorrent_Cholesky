@@ -1,6 +1,4 @@
-#include "communications.hpp"
-#include "runtime.hpp"
-#include "util.hpp"
+#include "tasktorrent/tasktorrent.hpp"
 #include <mkl_cblas.h>
 #include <mkl_lapacke.h>
 #include <Eigen/Core>
