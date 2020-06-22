@@ -262,32 +262,21 @@ task my_gemm(n : int, np : int, verify : bool)
   var rA = region(is, double)
   var rB = region(is, double)
   var rC = region(is, double)
+  var rD = region(is, double)
 
   var pA = partition(equal, rA, cs)
   var pB = partition(equal, rB, cs)
   var pC = partition(equal, rC, cs)
 
-  for x = 0, np do
-    make_pds_matrix(f2d { x = x, y = x }, n, pA[f2d { x = x, y = x }])
-    for y = x + 1, np do
-      make_random_matrix(f2d { x = x, y = y }, pA[f2d { x = x, y = y }])
-      var src = pA[f2d { x = x, y = y }]
-      var dst = pA[f2d { x = y, y = x }]
-      transpose_copy(src, dst)
-    end
-  end
 
   for x=0, np do
     for y=0, np do
-      make_zero_matrix(f2d{x=x,y=y},pB[f2d{x=x,y=y}])
+      make_zero_matrix(f2d{x=x,y=y},pC[f2d{x=x,y=y}])
+      make_random_matrix(f2d{x=x,y=y}, pA[f2d{x=x,y=y}])
+      make_random_matrix(f2d{x=x,y=y}, pB[f2d{x=x,y=y}])
     end
   end
 
-  for c in cs do
-    var src = pB[c]
-    var dst = pC[c]
-    copy(src, dst)
-  end
   __fence(__execution, __block)
   var ts_start = c.legion_get_current_time_in_micros()
 
@@ -299,16 +288,16 @@ task my_gemm(n : int, np : int, verify : bool)
         dgemm(x, y, k, n, bn,
               pC[f2d { x = x, y = y }],
               pA[f2d { x = x, y = k }],
-              pA[f2d { x = k, y = y }])
+              pB[f2d { x = k, y = y }])
       end
     end
   end  
   __fence(__execution, __block)
   var ts_end = c.legion_get_current_time_in_micros()
   c.printf("ELAPSED TIME = %7.3f ms\n", 1e-3 * (ts_end - ts_start))
---  dgemm(0,0,0,n,n,rB,rA,rA)
---  if verify then dgemm(0,0,0,n,1,pB ,pA,pA) end
-  if verify then verify_result(n, rB, rC) end
+--  dgemm(0,0,0,n,n,rD,rA,rB)
+  if verify then dgemm(0,0,0,n,n,rD, rA, rB) end
+  if verify then verify_result(n, rD, rC) end
 end
 
 task toplevel()
